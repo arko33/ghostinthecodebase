@@ -135,8 +135,9 @@ Seed data is deterministic: users `alice` and `bob`, invoice `inv-1001` owned by
 
 ## What the suite covers
 
-The TestSprite suite is generated in the 3.0 portal against the **deployed URL**
-(never localhost) and runs on every pull request through the GitHub App.
+The suite is authored in the TestSprite 3.0 portal against the **deployed URL**
+(never localhost) and runs on every pull request through the GitHub App. The
+cases below are what it is designed to assert.
 
 | Case | Request | Expected when secure |
 | --- | --- | --- |
@@ -173,7 +174,7 @@ holds the merge.
 | --- | --- |
 | Landing, playground, 3D city | done |
 | Live target API + BOLA demo | done |
-| TestSprite suite + GitHub App | wired in the portal |
+| TestSprite suite + GitHub App | pending — authored in the 3.0 portal |
 | Shadow-git collector, metrics runner, autopsy engine | stubbed — next milestone |
 | MCP read-only surface (`get_autopsy`) | planned |
 
