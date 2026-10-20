@@ -1,0 +1,110 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html,
+  body {
+    @apply bg-ink text-[13.5px] leading-relaxed font-sans text-[#e6edf3] antialiased;
+    min-height: 100%;
+  }
+  body {
+    background-image:
+      radial-gradient(900px 520px at 10% -10%, rgba(163, 113, 247, 0.12), transparent 60%),
+      radial-gradient(760px 520px at 92% -4%, rgba(74, 168, 255, 0.09), transparent 58%);
+    background-attachment: fixed;
+  }
+  a {
+    @apply text-human no-underline hover:underline;
+  }
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply rounded-full bg-line;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-dim/60;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+}
+
+@layer components {
+  .panel {
+    @apply bg-panel border border-line rounded-lg shadow-panel;
+  }
+
+  .chip {
+    @apply inline-flex items-center gap-1 rounded-full px-2 py-[1px] text-[10px] font-medium border;
+  }
+
+  .section-title {
+    @apply flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-dim;
+  }
+
+  .turn {
+    @apply rounded-md border border-transparent px-2.5 py-2 cursor-pointer transition-colors;
+  }
+  .turn:hover {
+    @apply bg-elev border-line;
+  }
+  .turn.active {
+    @apply bg-elev border-line shadow-glow;
+  }
+  .turn .role {
+    @apply flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-dim mb-0.5;
+  }
+  .turn .text {
+    @apply text-[13px] text-[#e6edf3] leading-snug;
+  }
+
+  .badge {
+    @apply inline-flex items-center gap-0.5 rounded-full px-1.5 py-[1px] text-[9px] font-semibold uppercase tracking-wide border;
+  }
+  .badge.ai {
+    @apply text-ai border-ai/40 bg-ai/10;
+  }
+  .badge.anom {
+    @apply text-danger border-danger/40 bg-danger/10;
+  }
+  .badge.ok {
+    @apply text-ok border-ok/40 bg-ok/10;
+  }
+
+  .diff {
+    @apply rounded-md border border-line overflow-hidden bg-glow;
+  }
+  .diff .file {
+    @apply flex items-center gap-1.5 px-2.5 py-1.5 text-[11px] font-mono text-dim bg-elev border-b border-line;
+  }
+  .diff pre {
+    @apply m-0 py-1 text-[12px] font-mono leading-[1.55];
+  }
+  .diff .line {
+    @apply px-2.5 flex items-start gap-1.5 whitespace-pre-wrap break-all;
+  }
+  .diff .line.add {
+    @apply bg-ok/10 text-ok/90;
+  }
+  .diff .line.del {
+    @apply bg-danger/10 text-danger/90;
+  }
+
+  .chart {
+    @apply w-full h-auto rounded-md border border-line bg-glow;
+  }
+
+  .scrubber input[type='range'] {
+    @apply appearance-none w-full h-1.5 rounded-full bg-line cursor-pointer;
+  }
+  .scrubber input[type='range']::-webkit-slider-thumb {
+    @apply appearance-none w-4 h-4 rounded-full bg-accent border-2 border-ink cursor-pointer;
+    box-shadow: 0 0 0 1px rgba(163,113,247,0.6), 0 0 14px -2px rgba(163,113,247,0.8);
+  }
+  .scrubber input[type='range']::-moz-range-thumb {
+    @apply w-4 h-4 rounded-full bg-accent border-2 border-ink cursor-pointer;
+  }
+}
