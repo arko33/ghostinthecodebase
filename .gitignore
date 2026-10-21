@@ -1,0 +1,33 @@
+# dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# next.js
+.next/
+out/
+next-env.d.ts
+
+# build / cache
+*.tsbuildinfo
+.turbo/
+*.tsbuildcache
+
+# local work docs (stale handoff, not part of the repo)
+HANDOFF.md
+PRD_CONCEPT.md
+
+# env & secrets
+.env
+.env.*
+!.env.example
+
+# os / editor
+.DS_Store
+Thumbs.db
+*.swp
+
+# opencode / agents local state
+.opencode/
+testsprite_tests/
+.vercel/

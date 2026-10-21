@@ -1,0 +1,234 @@
+/* ---------------------------------------------------------------------------
+   Legacy product dashboard. Preserved for /playground; intentionally scoped so
+   the landing page design tokens cannot leak into it.
+--------------------------------------------------------------------------- */
+
+.dashboard-page {
+  --bg: #0a0e14;
+  --bg-panel: #111722;
+  --bg-elev: #161d2b;
+  --border: #1f2937;
+  --text: #e6edf3;
+  --text-dim: #8b98a9;
+  --ai: #f5a623;
+  --human: #4aa8ff;
+  --danger: #ff4d4f;
+  --ok: #3fb950;
+  --accent: #a371f7;
+
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--text);
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+    sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.dashboard-page a {
+  color: var(--human);
+}
+
+.dashboard-page .app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+.dashboard-page .topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-panel);
+}
+
+.dashboard-page .brand {
+  font-weight: 700;
+  letter-spacing: 0.3px;
+}
+
+.dashboard-page .brand small {
+  color: var(--text-dim);
+  font-weight: 400;
+  margin-left: 8px;
+}
+
+.dashboard-page .layout {
+  display: grid;
+  grid-template-columns: 320px 1fr 1fr;
+  gap: 1px;
+  background: var(--border);
+  flex: 1;
+  min-height: 0;
+}
+
+.dashboard-page .panel {
+  background: var(--bg-panel);
+  overflow: auto;
+  padding: 12px;
+}
+
+.dashboard-page .panel h3 {
+  margin: 0 0 8px;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-dim);
+}
+
+.dashboard-page .scrubber {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  border-top: 1px solid var(--border);
+  background: var(--bg-panel);
+}
+
+.dashboard-page .scrubber input[type="range"] {
+  flex: 1;
+  accent-color: var(--accent);
+}
+
+.dashboard-page .turn {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 10px;
+  margin-bottom: 8px;
+  cursor: pointer;
+  background: var(--bg-elev);
+}
+
+.dashboard-page .turn.active {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+.dashboard-page .turn .role {
+  font-size: 11px;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+.dashboard-page .turn .text {
+  margin-top: 4px;
+}
+
+.dashboard-page .badge {
+  display: inline-block;
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  margin-left: 6px;
+}
+
+.dashboard-page .badge.anom {
+  background: rgba(255, 77, 79, 0.15);
+  color: var(--danger);
+}
+
+.dashboard-page .badge.ai {
+  background: rgba(245, 166, 35, 0.15);
+  color: var(--ai);
+}
+
+.dashboard-page .diff {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  background: #0d1117;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: auto;
+}
+
+.dashboard-page .diff .file {
+  padding: 4px 10px;
+  background: #161b22;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-dim);
+}
+
+.dashboard-page .diff pre {
+  margin: 0;
+  padding: 2px 10px;
+  white-space: pre;
+}
+
+.dashboard-page .diff .add {
+  background: rgba(63, 185, 80, 0.12);
+  color: #7ee787;
+}
+
+.dashboard-page .diff .del {
+  background: rgba(255, 77, 79, 0.12);
+  color: #ff7b72;
+}
+
+.dashboard-page .chart {
+  width: 100%;
+  background: #0d1117;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.dashboard-page .autopsy {
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--danger);
+  border-radius: 8px;
+  padding: 10px;
+  margin-top: 10px;
+  background: var(--bg-elev);
+}
+
+.dashboard-page .autopsy .cause {
+  color: var(--text);
+}
+
+.dashboard-page .autopsy code {
+  background: #0d1117;
+  padding: 1px 4px;
+  border-radius: 4px;
+  color: var(--ai);
+}
+
+.dashboard-page .city-wrap {
+  position: relative;
+  height: 100%;
+  min-height: 320px;
+}
+
+.dashboard-page .city-legend {
+  position: absolute;
+  bottom: 10px;
+  left: 10px;
+  font-size: 11px;
+  color: var(--text-dim);
+  background: rgba(10, 14, 20, 0.7);
+  padding: 6px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+}
+
+.dashboard-page .muted {
+  color: var(--text-dim);
+}
+
+@media (max-width: 960px) {
+  .dashboard-page .layout {
+    grid-template-columns: 1fr;
+    height: auto;
+  }
+
+  .dashboard-page .app {
+    height: auto;
+    min-height: 100vh;
+  }
+
+  .dashboard-page .city-wrap {
+    min-height: 420px;
+  }
+}
