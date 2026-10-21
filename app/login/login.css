@@ -1,0 +1,27 @@
+.login-main {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 32px;
+  text-align: center;
+}
+.login-title {
+  font-size: 2rem;
+  letter-spacing: 0.04em;
+}
+.login-note { opacity: 0.8; }
+.login-error { color: #f87171; }
+.login-btn {
+  padding: 12px 28px;
+  border: 1px solid rgba(128, 128, 160, 0.4);
+  border-radius: 10px;
+  color: inherit;
+  text-decoration: none;
+  font-size: 1rem;
+}
+.login-btn:hover { border-color: rgba(160, 160, 220, 0.9); }
+.login-hint { opacity: 0.55; font-size: 0.85rem; max-width: 420px; line-height: 1.6; }
+.login-hint code { font-size: 0.8rem; }
