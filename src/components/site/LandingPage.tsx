@@ -980,8 +980,8 @@ export default function LandingPage() {
                   },
                   {
                     n: "03",
-                    t: "Record any session",
-                    d: "Run ghost watch in your project, and run your app yourself (npm run dev etc.) - the recorder probes its /api/health. With the plugin, turns stream live; with any other agent (Cursor, Claude Code, a human) the filesystem watcher + runtime probes record everything from the outside - turns marked estimated, never invented.",
+                    t: "Watch yourself record",
+                    d: "Run ghost watch (and run your app separately - the recorder probes its /api/health). Ghost Studio opens instantly at localhost:5417: real turns, files + churn, runtime samples. With the 3D playground too: npm run dev in the dashboard repo and open /playground?live=1 - your recording builds the code city live.",
                   },
                   {
                     n: "04",
