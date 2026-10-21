@@ -19,9 +19,8 @@ export async function GET(
     return NextResponse.json({ error: "not_found" }, { status: 404 });
   }
 
-  // In SECURE_MODE=on the store returns null for cross-owner reads; in
-  // SECURE_MODE=off it returns the invoice (the BOLA leak). When the invoice
-  // exists but is not owned, deny with 403 rather than leaking existence.
+  // The store reports "exists but not owned" separately from "missing", so a
+  // cross-owner read is denied with 403 instead of leaking existence via 404.
   if (!allowed) {
     return NextResponse.json({ error: "forbidden" }, { status: 403 });
   }
