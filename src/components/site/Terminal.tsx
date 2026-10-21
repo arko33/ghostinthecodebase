@@ -5,9 +5,9 @@ import { useEffect, useRef, useState } from "react";
 import { useInView, useReducedMotion } from "./hooks";
 
 const COMMANDS = [
-  "npm install",
-  "npm run dev",
-  "npm run record -- --repo . --health http://localhost:3000/api/health --duration 60",
+  "curl -fsSL https://raw.githubusercontent.com/arko33/ghostinthecodebase/main/packages/ghost/install.sh | bash",
+  "ghost watch --repo . --app-url http://localhost:3000",
+  "ghost status",
 ];
 
 interface Props {
