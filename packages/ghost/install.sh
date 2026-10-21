@@ -15,7 +15,7 @@ echo "==> Downloading Ghost recorder (branch: ${REF})"
 curl -fsSL "https://codeload.github.com/${REPO}/tar.gz/refs/heads/${REF}" -o "$TMP/ghost.tar.gz"
 tar -xzf "$TMP/ghost.tar.gz" -C "$TMP"
 
-SRC="$(find "$TMP" -maxdepth 2 -type d -path '*packages/ghost')"
+SRC="$(find "$TMP" -maxdepth 3 -type d -path '*packages/ghost')"
 if [ -z "$SRC" ]; then
   echo "x packages/ghost not found in tarball" >&2
   exit 1
