@@ -799,7 +799,8 @@ export default function LandingPage() {
                   </p>
                   <p style={{ marginTop: 12 }}>
                     <strong>
-                      13 backend tests. Every pull request. The deployed URL.
+                      23 backend tests + 1 integration flow. Every pull request.
+                      The deployed URL.
                     </strong>
                   </p>
                 </>
@@ -914,16 +915,19 @@ export default function LandingPage() {
                   <Badge>Required check</Badge>
                 </div>
                 <div className="proof-testsprite__score">
-                  <CountUp target={13} />
-                  <small>/13</small>
+                  <CountUp target={24} />
+                  <small>/24</small>
                 </div>
                 <div className="proof-testsprite__state">
                   <span className="badge__dot" aria-hidden="true" />
                   Green · suite passes
                 </div>
                 <ul className="proof-testsprite__facts">
-                  <li>Runs on every pull request against the deployed URL.</li>
-                  <li>A red suite blocks the merge.</li>
+                  <li>24 tests: 23 backend tests + 1 integration flow.</li>
+                  <li>
+                    The PR check reruns the backend set on every pull request,
+                    against the deployed URL.
+                  </li>
                   <li>
                     PR #1 shipped a BOLA hole. PR #2 fixed it. Same suite, green.
                   </li>
@@ -935,7 +939,7 @@ export default function LandingPage() {
                   </span>
                   <span className="proof__pr" data-state="green">
                     <GitCommit size={14} weight="light" aria-hidden="true" />
-                    PR #2 · 13/13
+                    PR #2 · fixed · suite green
                   </span>
                 </div>
               </div>
@@ -1084,7 +1088,7 @@ export default function LandingPage() {
               </Button>
             </div>
             <p className="final__note">
-              <GhostMark size={12} /> Built for TestSprite Season 4 · 13/13
+              <GhostMark size={12} /> Built for TestSprite Season 4 · 24-test suite
               required check
             </p>
           </div>
