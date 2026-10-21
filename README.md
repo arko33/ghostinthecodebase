@@ -338,15 +338,15 @@ engine cannot prove it, the dashboard cannot show it.
 | Target API: invoices + ownership (`401/403/404`) | done |
 | Autopsy engine: thresholds, trend, attribution, heal check | done, exercised live against the fixture |
 | Metrics chart + diff viewer driven by fixture data | done |
-| OpenCode collector SSE wiring | **scaffold** (contract designed) |
-| Metrics runtime sampler loop | **scaffold** (contract designed) |
-| Shadow-git checkpoints / one-click rollback | **planned** |
-| Ghost Cloud (auth, projects, session sync) | **planned** — MVP 2 |
+| OpenCode collector SSE wiring | done — Mode A plugin streams real session events (`packages/opencode-plugin`) |
+| Metrics runtime sampler loop | done — Mode C probes poll `/api/health` and emit MetricSamples |
+| Shadow-git checkpoints / one-click rollback | done — throwaway index + `commit-tree`, never touches HEAD |
+| Ghost Cloud (auth, projects, session sync) | done — GitHub OAuth, device pairing, Neon Postgres (`/login` + `/pair`) |
 
-The dashboard today replays the committed fixture — that is the intended
-scenario view. The recorder underneath is being wired in the roadmap order
-above. Nothing in the UI fakes live behavior: parts that are not wired yet are
-not presented as working.
+The dashboard replays a recorded session end-to-end. The recorder underneath is
+**live**: the Ghost CLI records real agent sessions into a shadow-git store and
+syncs them to Ghost Cloud when a device is paired. Nothing in the UI fakes live
+behavior: parts that are not wired yet are not presented as working.
 
 ---
 
@@ -361,6 +361,35 @@ npm run typecheck  # tsc --noEmit
 
 Deploy on Vercel with `framework: Next.js` — no environment variables required;
 ownership in the demo API is enforced in code, not behind a flag.
+
+## 🧰 Install the Ghost CLI — one curl line, no npm
+
+The recorder is a plain Node script (no packages, no build step). Requires
+**Node.js >= 18** and **curl + tar** (both ship with macOS, most Linux distros,
+and Windows 10+).
+
+**macOS / Linux:**
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/arko33/ghostinthecodebase/main/packages/ghost/install.sh | bash
+```
+
+**Windows (PowerShell):**
+
+```powershell
+curl -fsSL https://raw.githubusercontent.com/arko33/ghostinthecodebase/main/packages/ghost/install.ps1 -o ghost-install.ps1
+powershell -ExecutionPolicy Bypass -File ghost-install.ps1
+```
+
+Both installers download the recorder from this repo, place it in `~/.ghost`,
+and put a `ghost` command on your PATH. Then, from any project directory:
+
+```bash
+ghost status     # repo head, cloud pairing state, sync policy
+ghost watch      # record: watch the working tree, checkpoint each change burst, sample runtime metrics
+ghost sessions   # list sessions stored in .ghost
+ghost setup      # optional: pair the device with Ghost Cloud (metadata-only sync; source code never leaves the machine)
+```
 
 ## 🛠️ Stack
 
