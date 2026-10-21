@@ -147,9 +147,10 @@ observation:
 
 - `GET /api/invoices` — list invoices for the caller (`x-user-id` header).
 - `POST /api/invoices` — create an invoice.
-- `GET /api/invoices/:id` — **BOLA / IDOR** when `SECURE_MODE=off`: returns any
-  invoice regardless of owner. With `SECURE_MODE=on`, a cross-owner read returns
-  `403`.
+- `GET /api/invoices/:id` — owner-scoped read. Cross-owner returns `403`, a
+  missing id returns `404`, no header returns `401`.
+- `GET /api/health` — runtime probe: cpu, rss, heap, uptime.
+- `GET /api/autopsy` — the autopsy engine over the recorded demo session.
 
 Seed data is deterministic: users `alice` and `bob`, invoice `inv-1001` owned by
 `alice`.
@@ -180,37 +181,30 @@ required check: a red suite blocks the merge.
 | 13 | Create unauthenticated | `POST /api/invoices` | `401`, nothing created |
 
 Run the same suite locally with `npx @testsprite/testsprite-cli ci run --project aa7e92b6-93ed-43a2-8cdf-9d4889269c86 --env default`.
-That is the **catch** half of the demo; flipping the gate to `on` is the **green**
-half. No verdict is ever fabricated in this repository — the suite is authored in
-the portal against the deployed URL and executed by the GitHub App.
+That is the **catch** half of the demo; enforcing ownership is the **green**
+half. No verdict is ever fabricated in this repository: the suite lives in the
+TestSprite 3.0 project and is executed against the deployed URL by the `TestSprite`
+workflow.
 
----
+## Wiring TestSprite
 
-## Wiring TestSprite (catch, then green)
+| PR | Change | Suite |
+| --- | --- | --- |
+| [#1](https://github.com/arko33/ghostinthecodebase/pull/1) | Scaffold, dashboard, 3D city, capture path | shipped the hole |
+| [#2](https://github.com/arko33/ghostinthecodebase/pull/2) | Ownership check on `GET /api/invoices/:id` | green, 13/13 |
 
-| PR | Change | `SECURE_MODE` | Suite |
-| --- | --- | --- | --- |
-| #1 | Scaffold, dashboard, 3D city | `off` | red — BOLA is caught |
-| #2 | Ownership check on `GET /api/invoices/:id` | `on` | green — same suite passes |
-| #3 | Polish, health endpoint, legend | `on` | green — regression guard holds |
-
-Install the GitHub App from the TestSprite dashboard, enable **Run on Pull
-Requests** and **Blocking PRs**, and every pull request gets a status check that
-holds the merge.
-
----
+The gate is [`.github/workflows/testsprite.yml`](.github/workflows/testsprite.yml):
+it runs the suite with the official CLI on every pull request and holds the merge.
 
 ## Status
 
 | Area | State |
 | --- | --- |
 | Landing, playground, 3D city | done |
-| Live target API + BOLA demo | done |
-| TestSprite suite + GitHub App | pending — authored in the 3.0 portal |
-| Shadow-git collector, metrics runner, autopsy engine | done — see the capture path |
+| Live target API + BOLA demo | done, `bob` gets 403 after #2 |
+| TestSprite suite (13 cases) | done, green on every PR |
+| Shadow-git collector, metrics runner, autopsy engine | done |
 | MCP read-only surface (`get_autopsy`) | planned |
-
----
 
 ## Credits
 
