@@ -119,6 +119,19 @@ export default function AutopsyPanel({
             </button>
           </div>
         </div>
+      ) : session.metrics.length === 0 ? (
+        <div className="pg-verdict">
+          <div className="pg-verdict__main">
+            <strong>—</strong>
+            <div>
+              <span className="pg-verdict__file">runtime monitor waiting</span>
+              <span className="pg-verdict__kind">
+                0 samples yet — the engine cannot judge curves it has not seen.
+                Point the recorder at your app (--app-url) so health samples arrive.
+              </span>
+            </div>
+          </div>
+        </div>
       ) : (
         <div className="pg-verdict">
           <div className="pg-verdict__main">
