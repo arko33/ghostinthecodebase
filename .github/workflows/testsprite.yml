@@ -1,0 +1,50 @@
+name: TestSprite
+
+# Every pull request runs the TestSprite backend suite against the live
+# deployment target and fails the check when any test does not pass.
+# Official pattern: https://docs.testsprite.com/cli/integrations/ci-cd
+
+on:
+  pull_request:
+
+concurrency:
+  group: testsprite-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  testsprite:
+    runs-on: ubuntu-latest
+    env:
+      TESTSPRITE_API_KEY: ${{ secrets.TESTSPRITE_API_KEY }}
+      PROJECT_ID: b14ba0a9-90d6-4c20-873e-583c7783a9fc
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install TestSprite CLI
+        run: npm install -g @testsprite/testsprite-cli
+
+      - name: Preflight
+        run: testsprite doctor
+
+      - name: Run suite (backend, wave-ordered batch)
+        run: |
+          testsprite test run --all --project "$PROJECT_ID" \
+            --wait --timeout 1200 --output json \
+            --summary-file ./summary.json > result.json
+
+      - name: Failure bundle
+        if: failure()
+        run: |
+          testsprite test failure get "$(jq -r '.run.testId // .testId // empty' result.json 2>/dev/null)" \
+            --out ./.testsprite/failure || true
+
+      - name: Upload failure bundle
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: testsprite-failure
+          path: ./.testsprite/failure
