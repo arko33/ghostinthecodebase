@@ -265,13 +265,25 @@ async function cmdWatch() {
 
   // Mode B — filesystem watcher (works with ANY agent, no events needed)
   let burst = null;
-  const checkpoint = (label) => {
+  const pendingFiles = new Set();
+  const hasGit = !!session.head;
+  const isNoise = (p) => p.startsWith(".ghost/") || p === ".ghost";
+  const checkpoint = (label, burstFiles = []) => {
     try {
+      if (!hasGit) {
+        // Non-git project: shadow-git is unavailable, so record the burst as a
+        // plain file-list checkpoint (paths are facts; no patch to compute).
+        const files = [...new Set(burstFiles)].filter((p) => p && !isNoise(p));
+        if (!files.length) return;
+        const sha = `nogit-${crypto.createHash("sha1").update(files.join("\n") + Date.now()).digest("hex").slice(0, 12)}`;
+        session.checkpoints.push({ ts: new Date().toISOString(), turnNumber: currentTurn(), sha, files });
+        const t = activeTurn();
+        return;
+      }
       const snap = shadow.commitSnapshot(repo, `ghost: ${label}`);
       if (!snap.diff) return;
       // recorder internals (.ghost/*) are bookkeeping, not app files — they
       // must never become towers in the city.
-      const isNoise = (p) => p.startsWith(".ghost/") || p === ".ghost";
       const changedFiles = snap.changedFiles.filter((p) => !isNoise(p));
       const churnEntries = Object.entries(parseDiffChurn(snap.diff)).filter(([p]) => !isNoise(p));
       if (!changedFiles.length || !churnEntries.length) return;
@@ -287,12 +299,14 @@ async function cmdWatch() {
     if (!file) return;
     const p = file.split(path.sep)[0];
     if (["node_modules", ".next", ".git", ".ghost", "out", ".vercel", "testsprite_tests"].includes(p)) return;
+    pendingFiles.add(file.split(path.sep).join("/"));
     if (burst) clearTimeout(burst);
     burst = setTimeout(() => {
       burst = null;
       // no open turn? attribute as estimated turn so nothing is lost
       if (!activeTurn()) startTurn({ ts: new Date().toISOString() });
-      checkpoint("worktree burst");
+      checkpoint("worktree burst", [...pendingFiles]);
+      pendingFiles.clear();
       const t = activeTurn(); if (t && !t.endedAt) t.endedAt = new Date().toISOString();
     }, 900);
   }); } catch { console.error("  ! recursive watch unavailable on this FS — adapter events only"); }
