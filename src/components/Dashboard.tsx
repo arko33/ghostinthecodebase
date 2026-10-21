@@ -52,7 +52,7 @@ export default function Dashboard({ session }: { session: Session }) {
   }, [session.snapshots, turns, activeTurn]);
 
   const hotFile =
-    activeTurn === anomalyTurnIndex ? turn.changedFiles[0] : undefined;
+    activeTurn === anomalyTurnIndex && turn ? turn.changedFiles[0] : undefined;
 
   const stop = useCallback(() => {
     setPlaying(false);
@@ -195,7 +195,9 @@ export default function Dashboard({ session }: { session: Session }) {
             <div className="pg-stage__canvas">
               <GhostCity
                 session={session}
-                snapshot={activeSnapshot}
+                snapshot={
+                  activeSnapshot ?? { id: "no-snapshot", turnId: "", files: [], imports: [] }
+                }
                 activeTurn={activeTurn}
                 hotFile={hotFile}
                 selectedFile={selectedFile}
