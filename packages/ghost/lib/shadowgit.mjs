@@ -27,8 +27,11 @@ export function commitSnapshot(repo, message = "ghost checkpoint") {
   try { git(["read-tree", "HEAD"]); } catch { /* empty repo without HEAD */ }
   // .ghost is the recorder's own bookkeeping (shadow index + patches). Staging
   // it would grow every snapshot by megabytes and eventually blow maxBuffer —
-  // the city would silently stop growing. Exclude it at the source.
-  git(["add", "-A", "--", ".", ":(exclude).ghost", ":(exclude).ghost/**"]);
+  // the city would silently stop growing. Add it to the repo-local exclude
+  // (never committed, never touches the user's .gitignore) so a plain add
+  // skips it everywhere, including repos that do not ignore .ghost.
+  ensureExcluded(repo);
+  git(["add", "-A", "--", "."]);
   const tree = git(["write-tree"]);
   let parent = null;
   try { parent = git(["rev-parse", "HEAD"]); } catch { /* first snapshot */ }
@@ -41,9 +44,19 @@ export function commitSnapshot(repo, message = "ghost checkpoint") {
   return { sha, diff: diffOut, changedFiles: listChangedFiles(repo, parent ? parent : "4b825dc642cb6eb9a060e54bf8d69288fbee4904", sha) };
 }
 
+function ensureExcluded(repo) {
+  try {
+    const file = path.join(repo, ".git", "info", "exclude");
+    const text = fs.existsSync(file) ? fs.readFileSync(file, "utf8") : "";
+    if (text.split(/\r?\n/).includes(".ghost/")) return;
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    fs.appendFileSync(file, (text && !text.endsWith("\n") ? "\n" : "") + ".ghost/\n");
+  } catch { /* worktree without .git — nothing to exclude */ }
+}
+
 function listChangedFiles(repo, from, to) {
   try {
-    const out = execFileSync("git", ["diff", "--name-only", from, to, "--", ".", ":(exclude).ghost", ":(exclude).ghost/**"], { cwd: repo, encoding: "utf8" }).trim();
+    const out = execFileSync("git", ["diff", "--name-only", from, to], { cwd: repo, encoding: "utf8" }).trim();
     return out ? out.split("\n").map((s) => s.trim()).filter(Boolean) : [];
   } catch { return []; }
 }
