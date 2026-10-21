@@ -243,7 +243,10 @@ export function buildPlaygroundCity(
     );
   });
 
-  // Ambient district blocks keep the city legible without inventing file facts.
+  // Ambient district blocks keep the demo city legible without inventing file
+  // facts. Live recordings never get filler: their skyline is exactly the set
+  // of files the session actually touched — zero files = an honest empty city.
+  if (!isLive) {
   const ambientCount = 44;
   for (let i = 0; i < ambientCount; i += 1) {
     let guard = 0;
@@ -272,6 +275,7 @@ export function buildPlaygroundCity(
       x,
       z,
     );
+  }
   }
 
   return towers;
