@@ -65,7 +65,7 @@ function studioHtml(base) {
 <h2>Checkpoints — shadow commits</h2><div id="cps"></div>
 <h2>Runtime samples</h2><div id="samples"></div>
 <footer>Recorder keeps saving to <span id="dref">.ghost/sessions/…</span> · Ctrl+C stops &amp; saves ·<br/>
-locals: <a href="/session">/session</a> (JSON) · events target for the OpenCode adapter: <a href="#">${base}/events</a></footer>
+locals: <a href="/session">/session</a> (JSON) · <a href="/city">city view</a> · events target for the OpenCode adapter: <a href="#">${base}/events</a></footer>
 </div><script>
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 async function tick(){
@@ -85,6 +85,113 @@ async function tick(){
     :"<div class='empty'>No samples yet — is your app running? the recorder probes "+esc(s.appUrl||"http://localhost:3000")+".</div>";
   }catch(e){document.title="ghost studio…retrying"}}
 tick();setInterval(tick,2000);
+</script></body></html>`;
+}
+
+// Ghost City — a zero-dependency live playground served by the recorder
+// itself, so `ghost watch` works like prisma studio: install once, run it in
+// any project, open the URL — no repo clone, no "npm run dev" required.
+// Towers are facts of the recording: files actually touched (churn height
+// when a git patch exists, flat tiles when not — never invented data).
+function cityHtml() {
+  return `<!doctype html><html><head><meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Ghost City — live playground</title>
+<style>
+  :root{--bg:#04100c;--fg:#e8f0ee;--dim:#9fb5af;--line:rgba(255,255,255,.09)}
+  *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:13px/1.5 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+  .top{display:flex;align-items:center;gap:10px;padding:14px 20px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+  .dot{width:8px;height:8px;border-radius:50%;background:#5eead4;box-shadow:0 0 8px #5eead4;animation:pulse 2s infinite}
+  @keyframes pulse{50%{opacity:.35}}
+  h1{font-size:15px;margin:0;letter-spacing:.02em}
+  .meta{color:var(--dim);font-size:12px}
+  .note{color:var(--dim);font-size:11px;padding:8px 20px;border-bottom:1px dashed var(--line)}
+  canvas{display:block;width:100%}
+  #tip{position:fixed;pointer-events:none;background:#061713;border:1px solid var(--line);border-radius:8px;padding:6px 10px;font-size:11px;display:none;z-index:9;max-width:340px;word-break:break-all}
+  footer{color:var(--dim);font-size:11px;padding:16px 20px 40px;line-height:1.8}
+  a{color:#5eead4}
+</style></head><body>
+<div class="top"><span class="dot"></span><h1>Ghost City — recording live</h1><span class="meta" id="meta">…</span></div>
+<div class="note" id="note"></div>
+<canvas id="c"></canvas>
+<div id="tip"></div>
+<footer>loopback only (127.0.0.1) — the recorder never leaves this machine · data: <a href="/session">/session</a> · detail view: <a href="/studio">/studio</a><br/>towers = files the agent actually touched this session. with a git patch → height = added+deleted lines (churn). non-git → flat tiles, because there is no patch to measure.</footer>
+<script>
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const cv=document.getElementById("c"),ctx=cv.getContext("2d"),tip=document.getElementById("tip"),meta=document.getElementById("meta"),note=document.getElementById("note");
+let towers=[],gitMode=true,turnCount=0;
+function build(s){
+  gitMode=!!s.head;turnCount=(s.turns??[]).length;
+  const seen=new Map();
+  for(const cp of s.checkpoints??[]){
+    for(const f of cp.files??[]){
+      const cur=seen.get(f)||{loc:null,turn:cp.turnNumber,ts:cp.ts};
+      const loc=(cp.churn||{})[f];
+      if(loc!=null)cur.loc=(cur.loc??0)+loc;
+      seen.set(f,cur);
+    }
+  }
+  towers=[...seen.entries()].sort((a,b)=>a[1].ts.localeCompare(b[1].ts))
+    .map(([p,v])=>({p,...v}));
+}
+function heightOf(t){return gitMode&&t.loc!=null?Math.min(10+t.loc*1.6,140):(gitMode?10:22)}
+function draw(){
+  const W=Math.max(560,innerWidth-2);
+  const cols=Math.max(1,Math.ceil(Math.sqrt(towers.length)));
+  const rows=Math.max(1,Math.ceil(towers.length/cols));
+  const T=cols>10?34:46,TH=T*0.56;
+  const maxH=towers.length?Math.max(...towers.map(heightOf)):0;
+  const H=Math.max(340,rows*TH*2+maxH+130);
+  cv.width=W*devicePixelRatio;cv.height=H*devicePixelRatio;cv.style.height=H+"px";
+  ctx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);
+  ctx.clearRect(0,0,W,H);ctx.fillStyle="#04100c";ctx.fillRect(0,0,W,H);
+  const ox=W/2,oy=70+rows*TH;
+  const iso=(x,z)=>[(x-z)*T/2+ox,(x+z)*TH/2+oy];
+  if(!towers.length){
+    ctx.fillStyle="#9fb5af";ctx.font="13px ui-monospace,monospace";
+    ctx.fillText("the city is empty — no files touched yet",30,60+rows*TH);
+    ctx.fillText("run your agent (OpenCode) in this project; each burst of file",30,84+rows*TH);
+    ctx.fillText("edits lays a new tower here. non-git repos show flat tiles.",30,108+rows*TH);
+    return;
+  }
+  ctx.strokeStyle="rgba(255,255,255,.06)";
+  for(let z=0;z<rows;z++)for(let x=0;x<cols;x++){
+    const[i,j]=iso(x,z);ctx.beginPath();ctx.moveTo(i,j);ctx.lineTo(i+T/2,j+TH/2);
+    ctx.lineTo(i,j+TH);ctx.lineTo(i-T/2,j+TH/2);ctx.closePath();ctx.stroke();
+  }
+  for(let idx=0;idx<towers.length;idx++){
+    const t=towers[idx],x=idx%cols,z=Math.floor(idx/cols),h=heightOf(t);
+    const[i,j]=iso(x,z),y=j-h;
+    const hot=gitMode&&t.loc!=null;
+    const l=hot?0.42+Math.min(h,140)/140*0.28:0.5;
+    const hue=hot?168-Math.min(h,140)/140*72:205;
+    ctx.fillStyle="hsl("+hue+",55%,"+Math.round(l*100)+"%)";
+    ctx.beginPath();ctx.moveTo(i,y);ctx.lineTo(i+T/2,y+TH/2);ctx.lineTo(i,y+TH);ctx.lineTo(i-T/2,y+TH/2);ctx.closePath();ctx.fill();
+    ctx.fillStyle="hsl("+hue+",45%,"+Math.round(l*70)+"%)";
+    ctx.beginPath();ctx.moveTo(i-T/2,y+TH/2);ctx.lineTo(i,y+TH);ctx.lineTo(i,j+TH);ctx.lineTo(i-T/2,j+TH/2);ctx.closePath();ctx.fill();
+    ctx.fillStyle="hsl("+hue+",50%,"+Math.round(l*55)+"%)";
+    ctx.beginPath();ctx.moveTo(i+T/2,y+TH/2);ctx.lineTo(i,y+TH);ctx.lineTo(i,j+TH);ctx.lineTo(i+T/2,j+TH/2);ctx.closePath();ctx.fill();
+    if (h>=26){ctx.fillStyle="rgba(232,240,238,.8)";ctx.fillText(t.p,i-T/2,y-4);}
+    t._poly=[[i,y],[i+T/2,y+TH/2],[i,j+TH],[i-T/2,y+TH/2]];
+  }
+  ctx.fillStyle="rgba(232,240,238,.75)";ctx.font="12px ui-monospace,monospace";
+  ctx.fillText(towers.length+" files built this city",20,26);
+}
+cv.onmousemove=e=>{
+  const r=cv.getBoundingClientRect(),mx=e.clientX-r.left,my=e.clientY-r.top;
+  const hit=towers.find(t=>{const P=t._poly;if(!P)return false;
+    let inn=false;for(let a=0,b=P.length-1;a<P.length;b=a++){const x1=P[a][0],y1=P[a][1],x2=P[b][0],y2=P[b][1];
+      if((y1>my)!=(y2>my)&&mx<(x2-x1)*(my-y1)/(y2-y1)+x1)inn=!inn;}return inn;});
+  if(hit){tip.style.display="block";tip.style.left=e.clientX+12+"px";tip.style.top=e.clientY+12+"px";
+    tip.innerHTML="<b>"+esc(hit.p)+"</b><br/>"+(hit.loc!=null?"churn "+hit.loc+" lines":"touched (no patch — non-git)")+" · turn "+hit.turn;}
+  else tip.style.display="none";
+};
+cv.onmouseleave=()=>tip.style.display="none";
+async function tick(){try{
+  build(await fetch("/session").then(r=>r.json()));
+  meta.textContent=turnCount+" turns · refreshed live";
+  draw();}catch(e){}}
+tick();setInterval(tick,1600);addEventListener("resize",draw);
 </script></body></html>`;
 }
 
@@ -211,6 +318,11 @@ async function cmdWatch() {
       res.end(studioHtml(eventsBase));
       return;
     }
+    if (req.method === "GET" && req.url === "/city") {
+      res.writeHead(200, { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" });
+      res.end(cityHtml());
+      return;
+    }
     if (req.method === "GET" && req.url === "/session") {
       res.writeHead(200, {
         "content-type": "application/json; charset=utf-8",
@@ -316,8 +428,9 @@ async function cmdWatch() {
   console.log(`    repo     ${repo}`);
   if (!session.head) console.log(`    git      none — file recording only (run git init to enable shadow-git checkpoints)`);
   console.log(`    app      ${appUrl}`);
-  console.log(`    studio   ${eventsBase}  ← open in browser: live turns, checkpoints, samples`);
-  console.log(`    replay   local dashboard: /playground?live=1 (identical to the published demo)`);
+  console.log(`    studio   ${eventsBase}  ← detail: turns, checkpoints, samples`);
+  console.log(`    city     ${eventsBase}/city  ← playground kota live (tanpa npm run dev)`);
+  console.log(`    replay   full 3D dashboard: repo → npm run dev → /playground?live=1`);
   console.log(`    adapter  ${eventsBase}/events (OpenCode plugin target)`);
   console.log(`    sync     ${sync}${sync === "off" ? "  (local-only) — run: ghost setup to enable" : ""}`);
   console.log(`    press Ctrl+C to stop & save\n`);
