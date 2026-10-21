@@ -210,7 +210,7 @@ export default function AutopsyPanel({
       <div className="pg-block">
         <div className="pg-block__head">
           <span className="pg-label">Runtime metrics</span>
-          <span className="pg-block__count">28 samples</span>
+          <span className="pg-block__count">{session.metrics.length} samples</span>
         </div>
         <MetricsChart
           metrics={session.metrics}
@@ -223,9 +223,12 @@ export default function AutopsyPanel({
       <div className="pg-block">
         <div className="pg-block__head">
           <span className="pg-label">Fix prompt</span>
-          <CopyButton value={autopsy.fixPrompt} label="Copy" />
+          {autopsy?.fixPrompt ? <CopyButton value={autopsy.fixPrompt} label="Copy" /> : null}
         </div>
-        <p className="pg-fix">{autopsy.fixPrompt}</p>
+        <p className="pg-fix">
+          {autopsy?.fixPrompt ??
+            "No anomaly detected — nothing to heal yet. Keep recording; the engine drafts the heal prompt if a sample breaches a threshold."}
+        </p>
       </div>
     </aside>
   );

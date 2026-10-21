@@ -106,8 +106,8 @@ export default function TimelineDock({
         <span
           className="pg-dock__anomaly"
           style={{ left: `${anomaly}%` }}
-          title="Anomaly on turn 4"
-          aria-label="Anomaly on turn 4"
+          title={`Anomaly on turn ${anomalyTurn + 1}`}
+          aria-label={`Anomaly on turn ${anomalyTurn + 1}`}
         >
           <i aria-hidden="true" />
         </span>
