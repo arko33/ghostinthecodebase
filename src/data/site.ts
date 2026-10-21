@@ -1,6 +1,5 @@
-// There is no configured remote in this workspace; this intentionally points at
-// GitHub rather than inventing a repository URL.
-export const GITHUB_URL = "https://github.com";
+// The repository is public: judges can view full setup docs in the README.
+export const GITHUB_URL = "https://github.com/arko33/ghostinthecodebase";
 
 export const PLAYGROUND_URL = "/playground";
 
