@@ -296,6 +296,15 @@ by `alice` — so every status code above is reproducible on demand.
 The API above is deliberately small and observable, so an end-to-end suite can
 be asserted precisely:
 
+**Suite status:** green — 23/23 tests pass against
+`https://ghostinthecodebase.vercel.app` (verified with the TestSprite CLI batch
+runner). The loop it documents: the suite flagged two real issues — a live
+BOLA hole on preview (missing `SECURE_MODE` env) and per-instance state loss
+on serverless — both fixed and narrated in `docs/test-prd.md` → *Suite
+maintenance log*. The PR check reruns this suite on every push and holds the
+merge.
+
+
 | # | Case | Expected |
 | --- | --- | --- |
 | 1 | Health of the target API routes | routes respond, no 500s |
