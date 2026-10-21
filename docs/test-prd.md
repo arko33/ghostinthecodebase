@@ -70,3 +70,12 @@ Cover, per feature: authentication (401), happy path (200/201), ownership denial
 (403), not-found (404), validation (400/422), and isolation of the other user's
 data at every step. Create operations must not mutate other users' data. Error
 bodies use the machine-readable `{"error": "..."}` shape shown above.
+
+## Suite maintenance log
+
+- 2026-10-22 — First portal run surfaced a TestSprite plan/codegen issue: the
+  generated capture assumed an `invoice_id` field, while the contract (this PRD
+  + `docs/openapi.json`) defines `{"invoices":[{"id": ...}]}`, created as
+  `{"invoice": {"id": ...}}`. Fixed in the portal by refining the two affected
+  test descriptions to capture `id` from the correct path (seeded ids remain
+  `inv-1001`/`inv-1002`); suite re-run green. API code untouched.
