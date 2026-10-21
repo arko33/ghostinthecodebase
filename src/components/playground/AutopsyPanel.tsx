@@ -42,12 +42,35 @@ export default function AutopsyPanel({
   const turn = session.turns[activeTurn];
   const autopsy = session.autopsies[0];
   const anomaly = session.anomalies[0];
+  const blameTurn = autopsy
+    ? session.turns.find((t) => t.id === autopsy.blamedTurnId) ?? null
+    : null;
+  const blameIndex = blameTurn ? blameTurn.index : null;
   const selectedTower = selectedFile
     ? session.snapshots
         .flatMap((snapshot) => snapshot.files)
         .find((file) => file.path === selectedFile)
     : null;
-  const healed = rolledBack || activeTurn >= 5;
+  // live recordings heal only when the recording says so; the demo scrub keeps
+  // its activeTurn-driven narrative.
+  const isLive = session.agent?.startsWith("ghost-live") ?? false;
+  const healed = rolledBack || (!isLive && activeTurn >= 5) || !!autopsy?.healed;
+  if (!turn) {
+    return (
+      <aside className="pg-autopsy" aria-label="Autopsy">
+        <div className="pg-autopsy__head">
+          <span className="pg-label">Autopsy</span>
+          <span className="pg-autopsy__state" data-healed="false">
+            <WarningCircle size={14} weight="light" aria-hidden="true" />
+            waiting
+          </span>
+        </div>
+        <p style={{ opacity: 0.6, fontSize: 13 }}>
+          Recording — no turn data at this position yet.
+        </p>
+      </aside>
+    );
+  }
 
   return (
     <aside className="pg-autopsy" aria-label="Autopsy">
@@ -63,33 +86,52 @@ export default function AutopsyPanel({
         </span>
       </div>
 
-      <div className="pg-verdict" data-healed={healed ? "true" : "false"}>
-        <div className="pg-verdict__top">
-          <span className="pg-label">Blamed turn</span>
-          <span className="pg-verdict__delta">
-            {healed ? "curve flat" : "+38 MB / sample"}
-          </span>
-        </div>
-        <div className="pg-verdict__main">
-          <strong>t4</strong>
-          <div>
-            <span className="pg-verdict__file">src/store/invoices.ts</span>
-            <span className="pg-verdict__kind">
-              {anomaly.kind} · {anomaly.severity} · turn 4
+      {anomaly && autopsy ? (
+        <div className="pg-verdict" data-healed={healed ? "true" : "false"}>
+          <div className="pg-verdict__top">
+            <span className="pg-label">Blamed turn</span>
+            <span className="pg-verdict__delta">
+              {healed ? "curve flat" : `${anomaly.kind} over threshold`}
             </span>
           </div>
+          <div className="pg-verdict__main">
+            <strong>{blameIndex !== null ? `t${blameIndex}` : "t—"}</strong>
+            <div>
+              <span className="pg-verdict__file">
+                {blameTurn?.changedFiles?.length
+                  ? blameTurn.changedFiles.join(", ")
+                  : "files captured per checkpoint"}
+              </span>
+              <span className="pg-verdict__kind">
+                {anomaly.kind} · {anomaly.severity}
+                {blameIndex !== null ? ` · turn ${blameIndex}` : ""}
+              </span>
+            </div>
+          </div>
+          <div className="pg-verdict__actions">
+            <button type="button" onClick={onJumpToBlame}>
+              <Crosshair size={14} weight="light" aria-hidden="true" />
+              Jump to blame
+            </button>
+            <button type="button" onClick={onRollback} data-healed={healed ? "true" : "false"}>
+              <ArrowUUpLeft size={14} weight="light" aria-hidden="true" />
+              {healed ? "Re-measured" : "Roll back"}
+            </button>
+          </div>
         </div>
-        <div className="pg-verdict__actions">
-          <button type="button" onClick={onJumpToBlame}>
-            <Crosshair size={14} weight="light" aria-hidden="true" />
-            Jump to blame
-          </button>
-          <button type="button" onClick={onRollback} data-healed={healed ? "true" : "false"}>
-            <ArrowUUpLeft size={14} weight="light" aria-hidden="true" />
-            {healed ? "Re-measured" : "Roll back"}
-          </button>
+      ) : (
+        <div className="pg-verdict">
+          <div className="pg-verdict__main">
+            <strong>—</strong>
+            <div>
+              <span className="pg-verdict__file">no anomaly detected</span>
+              <span className="pg-verdict__kind">
+                the recorded samples stayed inside every threshold so far
+              </span>
+            </div>
+          </div>
         </div>
-      </div>
+      )}
 
       {selectedFile && (
         <div className="pg-selected">
