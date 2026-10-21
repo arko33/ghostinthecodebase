@@ -2,7 +2,7 @@
   "openapi": "3.0.3",
   "info": {
     "title": "GhostInTheCodebase - Invoices Target API",
-    "description": "A small invoices API that is the live observation target of the GhostInTheCodebase demo. All routes require an 'x-user-id' header identifying a seeded user. Ownership is enforced on reads (BOLA/IDOR protection: cross-owner reads return 403, unknown ids 404). Seed data is deterministic: users 'alice' and 'bob'; invoice 'inv-1001' (owner alice, customer 'Acme Corp'); invoice 'inv-1002' (owner bob).",
+    "description": "A small invoices API that is the live observation target of the GhostInTheCodebase demo. All routes require an 'x-user-id' header identifying a seeded user. Ownership is enforced on reads (BOLA/IDOR protection: cross-owner reads return 403, unknown ids 404). Seed data is deterministic: users 'alice' and 'bob'; invoice 'inv-1001' (owner alice, customer 'Acme Corp'); invoice 'inv-1002' (owner bob). The deployed instance always runs with SECURE_MODE=on (ownership enforced); the separate demo mode (SECURE_MODE=off) is the recorded regression story replayed by the dashboard, never the shipped API state.",
     "version": "1.0.0"
   },
   "servers": [
