@@ -31,6 +31,7 @@ const ICON = {
   file: icon('<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8l-5-5Z"/><path d="M14 3v5h5"/>'),
   x: icon('<path d="m6 6 12 12M18 6 6 18"/>'),
   undo: icon('<path d="M4 10h9a5 5 0 1 1 0 10H8"/><path d="M4 10l4-4M4 10l4 4"/>'),
+  copy: icon('<rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h8"/>'),
 };
 
 const state = {
@@ -105,9 +106,21 @@ function normalize(raw) {
   const anomaly = detect(samples);
   let blamedPath = null;
   if (anomaly) {
-    const cp = checkpoints.filter((c) => c.turnNumber === anomaly.turn);
+    // Probes sample every few seconds, so a spike is often first seen one turn
+    // after the write that caused it. Blame the window [turn-1, turn], weighted
+    // so the current turn still wins a tie — otherwise the fix prompt points at
+    // whichever stylesheet happened to be edited next.
     let best = null;
-    for (const c of cp) for (const [p, v] of Object.entries(c.churn || {})) if (!best || v > best.v) best = { p, v };
+    for (const turn of [anomaly.turn, anomaly.turn - 1]) {
+      const weight = turn === anomaly.turn ? 1 : 0.7;
+      for (const c of checkpoints) {
+        if (c.turnNumber !== turn) continue;
+        for (const [p, v] of Object.entries(c.churn || {})) {
+          const score = v * weight;
+          if (!best || score > best.score) best = { p, score };
+        }
+      }
+    }
     blamedPath = best ? best.p : null;
   }
 
@@ -254,37 +267,121 @@ function chartSvg(samples) {
   if (!samples.length) {
     return '<div class="pg-empty">' + GHOST(24, "ghost-mark--glow") + "<p>0 samples yet — point the recorder at your app (--app-url) so health samples arrive.</p></div>";
   }
-  const w = 320, h = 92, pad = 8;
-  const rss = samples.map((s) => (s.metrics || {}).rss || 0);
-  const cpu = samples.map((s) => (s.metrics || {}).cpu || 0);
-  const maxR = Math.max(...rss, 0);
-  const maxC = Math.max(...cpu, 0);
-  if (maxR <= 0 && maxC <= 0) {
-    return '<div class="pg-empty">' + GHOST(24, "ghost-mark--glow") + "<p>the probe answered, but returned no rss/cpu numbers yet — check /api/health on your app.</p></div>";
-  }
-  const scaleR = Math.max(maxR, 1);
-  const scaleC = Math.max(maxC, 1);
-  const x = (i) => pad + (i / Math.max(1, samples.length - 1)) * (w - pad * 2);
-  const yR = (v) => h - pad - (v / scaleR) * (h - pad * 2);
-  const yC = (v) => h - pad - (v / scaleC) * (h - pad * 2);
-  const line = (arr, y) => arr.map((v, i) => (i ? "L" : "M") + x(i).toFixed(1) + " " + y(v).toFixed(1)).join(" ");
-  const threshold = yR(scaleR * 0.82);
+  const W = 560, H = 250, padL = 44, padR = 46, padT = 30, padB = 30;
+  const mem = samples.map((s) => Math.round(((s.metrics || {}).rss || 0) / 1048576));
+  const lat = samples.map((s) => Math.round((s.metrics || {}).latencyMs || 0));
+  const maxMem = Math.max(400, Math.max.apply(null, mem)) * 1.02;
+  const maxLat = Math.max(300, Math.max.apply(null, lat)) * 1.08;
+  const threshold = 200;
+  const x = (i) => padL + (i / Math.max(1, samples.length - 1)) * (W - padL - padR);
+  const yMem = (v) => H - padB - (v / maxMem) * (H - padT - padB);
+  const yLat = (v) => H - padB - (v / maxLat) * (H - padT - padB);
+  const smooth = (pts) => {
+    if (!pts.length) return "";
+    let d = "M " + pts[0][0].toFixed(1) + " " + pts[0][1].toFixed(1);
+    for (let i = 0; i < pts.length - 1; i += 1) {
+      const mid = (pts[i][0] + pts[i + 1][0]) / 2;
+      d += " C " + mid.toFixed(1) + " " + pts[i][1].toFixed(1) + ", " + mid.toFixed(1) + " " + pts[i + 1][1].toFixed(1) + ", " + pts[i + 1][0].toFixed(1) + " " + pts[i + 1][1].toFixed(1);
+    }
+    return d;
+  };
+  const memPath = smooth(mem.map((v, i) => [x(i), yMem(v)]));
+  const latPath = smooth(lat.map((v, i) => [x(i), yLat(v)]));
+  const areaPath = memPath + " L " + x(samples.length - 1).toFixed(1) + " " + (H - padB) + " L " + x(0).toFixed(1) + " " + (H - padB) + " Z";
+
+  const anomalyIdx = state.anomaly ? Math.min(samples.length - 1, state.anomaly.index) : -1;
+  const anomalyEnd = anomalyIdx >= 0 ? Math.min(samples.length - 1, anomalyIdx + 4) : -1;
+  const delta = anomalyIdx > 0 ? mem[anomalyIdx] - mem[anomalyIdx - 1] : 0;
   const activeN = state.turns[state.active] ? state.turns[state.active].n : 0;
-  let activeIdx = -1;
+  let activeIdx = 0;
   samples.forEach((s, i) => { if ((s.turnNumber || 0) <= activeN) activeIdx = i; });
+
+  const grid = [0, 0.25, 0.5, 0.75, 1].map((f) => {
+    const value = Math.round(maxMem * f);
+    const y = yMem(value);
+    return '<line x1="' + padL + '" x2="' + (W - padR) + '" y1="' + y.toFixed(1) + '" y2="' + y.toFixed(1) + '" stroke="rgba(255,255,255,.055)"/>' +
+      '<text x="' + (padL - 8) + '" y="' + (y + 3).toFixed(1) + '" text-anchor="end" class="pg-chart__axis">' + value + "</text>";
+  }).join("");
+  const right = [0, 0.5, 1].map((f) => {
+    const value = Math.round(maxLat * f);
+    return '<text x="' + (W - padR + 8) + '" y="' + (yLat(value) + 3).toFixed(1) + '" text-anchor="start" class="pg-chart__axis">' + value + "</text>";
+  }).join("");
+
+  const region = anomalyIdx >= 0
+    ? '<rect x="' + x(anomalyIdx).toFixed(1) + '" y="' + padT + '" width="' + Math.max(0, x(anomalyEnd) - x(anomalyIdx)).toFixed(1) + '" height="' + (H - padT - padB) + '" fill="rgba(255,122,107,.06)"/>' +
+      '<line x1="' + x(anomalyIdx).toFixed(1) + '" x2="' + x(anomalyIdx).toFixed(1) + '" y1="' + padT + '" y2="' + (H - padB) + '" stroke="rgba(255,122,107,.3)" stroke-dasharray="3 5"/>'
+    : "";
+
+  const leader = anomalyIdx > 0
+    ? '<line x1="' + x(anomalyIdx).toFixed(1) + '" y1="' + yMem(mem[anomalyIdx]).toFixed(1) + '" x2="' + (x(anomalyIdx) + 14).toFixed(1) + '" y2="' + (padT + 18) + '" stroke="rgba(255,122,107,.55)"/>' +
+      '<text x="' + (x(anomalyIdx) + 18).toFixed(1) + '" y="' + (padT + 14) + '" class="pg-chart__anomaly-label">+' + delta + " MB / sample</text>"
+    : "";
+
   return '<div class="pg-chart__legend">' +
-    '<span><i class="pg-chart__swatch pg-chart__swatch--mem"></i>rss</span>' +
-    '<span><i class="pg-chart__swatch pg-chart__swatch--lat"></i>cpu</span>' +
+    '<span><i class="pg-chart__swatch pg-chart__swatch--mem"></i>rss (MB)</span>' +
+    '<span><i class="pg-chart__swatch pg-chart__swatch--lat"></i>p95 (ms)</span>' +
     '<span><i class="pg-chart__swatch pg-chart__swatch--threshold"></i>threshold</span>' +
-    '<span style="margin-left:auto">' + samples.length + " samples</span></div>" +
-    '<svg class="pg-chart__svg" viewBox="0 0 ' + w + " " + h + '" preserveAspectRatio="none" role="img" aria-label="runtime metrics">' +
-    '<line x1="0" y1="' + threshold.toFixed(1) + '" x2="' + w + '" y2="' + threshold.toFixed(1) + '" stroke="rgba(255,122,107,.45)" stroke-dasharray="3 4" stroke-width="1"/>' +
-    (activeIdx >= 0 ? '<line x1="' + x(activeIdx).toFixed(1) + '" y1="0" x2="' + x(activeIdx).toFixed(1) + '" y2="' + h + '" stroke="rgba(182,168,255,.35)" stroke-width="1"/>' : "") +
-    '<path d="' + line(rss, yR) + '" fill="none" stroke="#ff7a6b" stroke-width="1.5" stroke-linejoin="round"/>' +
-    '<path d="' + line(cpu, yC) + '" fill="none" stroke="#67e8f9" stroke-width="1.2" opacity=".85"/>' +
-    '<text x="' + pad + '" y="10" class="pg-chart__axis">' + Math.round(scaleR / 1024 / 1024) + " MB peak</text>" +
-    '<text x="' + (w - pad) + '" y="10" text-anchor="end" class="pg-chart__axis">' + Math.round(scaleC) + "% cpu</text>" +
+    "</div>" +
+    '<svg viewBox="0 0 ' + W + " " + H + '" class="pg-chart__svg" role="img" aria-label="Memory and p95 latency across ' + samples.length + ' recorded samples">' +
+    '<defs><linearGradient id="pg-mem-fill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#ff7a6b" stop-opacity=".26"/><stop offset="100%" stop-color="#ff7a6b" stop-opacity="0"/></linearGradient>' +
+    '<linearGradient id="pg-lat-fill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#67e8f9" stop-opacity=".12"/><stop offset="100%" stop-color="#67e8f9" stop-opacity="0"/></linearGradient></defs>' +
+    region + grid + right +
+    '<line x1="' + padL + '" x2="' + (W - padR) + '" y1="' + yMem(threshold).toFixed(1) + '" y2="' + yMem(threshold).toFixed(1) + '" stroke="rgba(255,122,107,.5)" stroke-dasharray="4 5"/>' +
+    '<text x="' + (W - padR) + '" y="' + (yMem(threshold) - 6).toFixed(1) + '" text-anchor="end" class="pg-chart__threshold">threshold ' + threshold + " MB</text>" +
+    '<path d="' + areaPath + '" fill="url(#pg-mem-fill)"/>' +
+    '<path d="' + latPath + '" fill="none" stroke="#67e8f9" stroke-width="1.4" stroke-opacity=".65" stroke-linecap="round"/>' +
+    '<path d="' + memPath + '" fill="none" stroke="#ff7a6b" stroke-width="2.2" stroke-linecap="round"/>' +
+    '<line x1="' + x(activeIdx).toFixed(1) + '" x2="' + x(activeIdx).toFixed(1) + '" y1="' + padT + '" y2="' + (H - padB) + '" stroke="rgba(182,168,255,.7)" stroke-dasharray="3 4"/>' +
+    '<text x="' + (x(activeIdx) + 5).toFixed(1) + '" y="' + (padT + 10) + '" class="pg-chart__active-label">t' + activeN + "</text>" +
+    leader +
+    '<g id="chartHover"></g>' +
+    '<rect id="chartHit" x="' + padL + '" y="' + padT + '" width="' + (W - padL - padR) + '" height="' + (H - padT - padB) + '" fill="transparent" style="cursor:crosshair"/>' +
     "</svg>";
+}
+
+function bindChart() {
+  const hit = $("chartHit");
+  const layer = $("chartHover");
+  if (!hit || !layer) return;
+  const W = 560, H = 250, padL = 44, padR = 46, padT = 30, padB = 30;
+  const samples = state.samples;
+  const mem = samples.map((s) => Math.round(((s.metrics || {}).rss || 0) / 1048576));
+  const lat = samples.map((s) => Math.round((s.metrics || {}).latencyMs || 0));
+  const maxMem = Math.max(400, Math.max.apply(null, mem)) * 1.02;
+  const maxLat = Math.max(300, Math.max.apply(null, lat)) * 1.08;
+  const x = (i) => padL + (i / Math.max(1, samples.length - 1)) * (W - padL - padR);
+  const yMem = (v) => H - padB - (v / maxMem) * (H - padT - padB);
+  const yLat = (v) => H - padB - (v / maxLat) * (H - padT - padB);
+
+  const indexAt = (event) => {
+    const rect = hit.ownerSVGElement.getBoundingClientRect();
+    const local = ((event.clientX - rect.left) / rect.width) * W;
+    const ratio = (local - padL) / (W - padL - padR);
+    return Math.max(0, Math.min(samples.length - 1, Math.round(ratio * (samples.length - 1))));
+  };
+
+  hit.addEventListener("pointermove", (event) => {
+    const i = indexAt(event);
+    const s = samples[i];
+    const tooltipW = 156;
+    const tx = Math.min(W - tooltipW - 6, Math.max(6, x(i) - tooltipW / 2));
+    const metrics = s.metrics || {};
+    layer.innerHTML =
+      '<line x1="' + x(i).toFixed(1) + '" x2="' + x(i).toFixed(1) + '" y1="' + padT + '" y2="' + (H - padB) + '" stroke="rgba(237,239,245,.35)"/>' +
+      '<circle cx="' + x(i).toFixed(1) + '" cy="' + yMem(mem[i]).toFixed(1) + '" r="3.2" fill="#ff7a6b" stroke="#05060a" stroke-width="1.2"/>' +
+      '<circle cx="' + x(i).toFixed(1) + '" cy="' + yLat(lat[i]).toFixed(1) + '" r="2.6" fill="#67e8f9" stroke="#05060a" stroke-width="1"/>' +
+      '<g transform="translate(' + tx.toFixed(1) + ',' + (padT + 4) + ')">' +
+      '<rect width="' + tooltipW + '" height="52" rx="6" fill="rgba(11,13,20,.96)" stroke="rgba(255,255,255,.14)"/>' +
+      '<text x="9" y="17" class="pg-chart__tip-strong">t' + (s.turnNumber || 0) + " · " + mem[i] + " MB</text>" +
+      '<text x="9" y="33" class="pg-chart__tip">' + lat[i] + " ms p95 · " + Math.round(metrics.cpu || 0) + "% cpu</text>" +
+      '<text x="9" y="46" class="pg-chart__tip">' + (metrics.errors || 0) + " errors</text></g>";
+  });
+  hit.addEventListener("pointerleave", () => { layer.innerHTML = ""; });
+  hit.addEventListener("click", (event) => {
+    const s = samples[indexAt(event)];
+    const idx = state.turns.findIndex((t) => t.n === (s.turnNumber || 0));
+    if (idx >= 0) selectTurn(idx);
+  });
 }
 
 function renderAutopsy() {
@@ -349,13 +446,36 @@ function renderAutopsy() {
       (turn.sha ? '<details class="pg-details"><summary>checkpoint ' + esc(String(turn.sha).slice(0, 10)) + '</summary><div class="diff" id="diffBody"><pre>loading patch…</pre></div></details>' : '<div class="pg-empty"><p>No patch for this turn — the recorder only stores diffs when git shadow checkpoints exist.</p></div>') + "</div>";
   }
 
-  html += '<div class="pg-block"><div class="pg-block__head"><span class="pg-label">Runtime</span><span class="pg-block__count">' + state.samples.length + " samples</span></div>" + chartSvg(state.samples) + "</div>";
+  html += '<div class="pg-block"><div class="pg-block__head"><span class="pg-label">Runtime metrics</span><span class="pg-block__count">' + state.samples.length + " samples</span></div>" + chartSvg(state.samples) + "</div>";
+
+  const fixPrompt = state.anomaly
+    ? "Add a bounded LRU eviction (e.g. clear or shift when size exceeds a cap) to " + (state.blamedPath || "the hottest module") + " and re-run the memory regression check."
+    : "No anomaly detected — nothing to heal yet. Keep recording; the engine drafts the heal prompt if a sample breaches a threshold.";
+  html += '<div class="pg-block"><div class="pg-block__head"><span class="pg-label">Fix prompt</span>' +
+    (state.anomaly ? '<button type="button" class="copy-btn" id="copyFix" data-copied="false">' + ICON.copy + "<span>Copy</span></button>" : "") +
+    '</div><p class="pg-fix">' + esc(fixPrompt) + "</p></div>";
   $("autopsy").innerHTML = html;
 
   const jump = $("jumpBlame");
   if (jump) jump.onclick = () => { const i = state.turns.findIndex((t) => t.n === (state.anomaly ? state.anomaly.turn : 0)); if (i >= 0) selectTurn(i); state.preset = "blame"; renderAll(); };
   const clear = $("clearSel");
   if (clear) clear.onclick = () => { state.selected = null; renderAll(); };
+  const copyFix = $("copyFix");
+  if (copyFix) copyFix.onclick = async () => {
+    try {
+      await navigator.clipboard.writeText(fixPrompt);
+      copyFix.dataset.copied = "true";
+      copyFix.innerHTML = ICON.check + "<span>Copied</span>";
+      setTimeout(() => {
+        if (!copyFix.isConnected) return;
+        copyFix.dataset.copied = "false";
+        copyFix.innerHTML = ICON.copy + "<span>Copy</span>";
+      }, 1800);
+    } catch {
+      copyFix.dataset.copied = "false";
+    }
+  };
+  bindChart();
   const viewPatch = $("viewPatch");
   if (viewPatch) viewPatch.onclick = () => {
     const d = document.querySelector(".pg-details");
@@ -630,7 +750,7 @@ function overviewDist() {
   const ext = state.towers.length
     ? Math.max(...state.towers.map((t) => Math.max(Math.abs(t.x), Math.abs(t.z))))
     : 12;
-  return clamp(ext * 2.4 + 16, 36, 86);
+  return clamp(ext * 3.0 + 20, 44, 100);
 }
 
 function pick(e) {

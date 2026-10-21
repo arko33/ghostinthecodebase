@@ -11,8 +11,10 @@ export function createProbes({ url, intervalMs = 4000, fetchImpl = globalThis.fe
   async function sample() {
     const ts = new Date().toISOString();
     try {
+      const started = Date.now();
       const res = await fetchImpl(url, { headers: { accept: "application/json" }, signal: AbortSignal.timeout(5000) });
-      if (!res.ok) return push(ts, { errors: 1, httpStatus: res.status }, true);
+      const latencyMs = Date.now() - started;
+      if (!res.ok) return push(ts, { errors: 1, httpStatus: res.status, latencyMs }, true);
       const body = await res.json().catch(() => ({}));
       const cpu = Number(body.cpuPercent ?? body.cpu ?? 0) || 0;
       let cpuDelta = cpu;
@@ -22,7 +24,7 @@ export function createProbes({ url, intervalMs = 4000, fetchImpl = globalThis.fe
         cpu: Number((cpuDelta * 100 + cpu).toFixed(2)),
         rss: Number(body.rss ?? 0),
         heap: Number(body.heap ?? 0),
-        latencyMs: null,
+        latencyMs,
         errors: 0,
         uptime: Number(body.uptime ?? 0),
       }, false);

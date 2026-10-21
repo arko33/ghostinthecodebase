@@ -1582,3 +1582,34 @@ canvas{display:block;max-width:100%}
 }
 
 @media (min-width:901px){.pg-stage__empty p{max-width:420px}}
+.copy-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 26px;
+  padding: 0 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--fg-2);
+  font-family: var(--font-mono-stack);
+  font-size: 9px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  transition: color .25s, border-color .25s, background-color .25s;
+}
+
+.copy-btn:hover {
+  color: var(--fg);
+  border-color: var(--line-strong);
+  background: rgba(255, 255, 255, .04);
+}
+
+.copy-btn[data-copied="true"] {
+  color: var(--emerald);
+  border-color: rgba(94, 234, 212, .28);
+}
+
+.copy-btn svg {
+  width: 12px;
+  height: 12px;
+}
