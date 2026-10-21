@@ -195,6 +195,229 @@ tick();setInterval(tick,1600);addEventListener("resize",draw);
 </script></body></html>`;
 }
 
+// Ghost City 3D — same layout language as the published playground (3D city in
+// the center, info panel left, selected-tower panel right, turn dock bottom),
+// but stream-fed from the recorder's own /session, so ANY project gets the
+// full experience from `ghost watch` alone. three.js is loaded from a CDN in
+// the browser (the recorder itself stays zero-dependency); if the browser is
+// offline the 2D canvas city at /city2d is still served by the recorder.
+function cityHtml3d() {
+  return `<!doctype html><html><head><meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Ghost City — live playground (3D)</title>
+<style>
+  :root{--bg:#070d0b;--fg:#e8f0ee;--dim:#8ba39d;--line:rgba(255,255,255,.09);--hot:#ff7a6b;--cold:#5eead4;--card:rgba(255,255,255,.04)}
+  *{box-sizing:border-box}html,body{height:100%}
+  body{margin:0;background:var(--bg);color:var(--fg);font:13px/1.55 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;overflow:hidden;display:flex;flex-direction:column}
+  a{color:var(--cold);text-decoration:none}a:hover{text-decoration:underline}
+  header{display:flex;align-items:center;gap:12px;padding:10px 16px;border-bottom:1px solid var(--line);flex:none}
+  .dot{width:8px;height:8px;border-radius:50%;background:var(--cold);box-shadow:0 0 8px var(--cold);animation:pulse 2s infinite}
+  @keyframes pulse{50%{opacity:.35}}
+  header h1{font-size:14px;margin:0;letter-spacing:.03em}
+  .meta{color:var(--dim);font-size:11px}
+  .spacer{flex:1}
+  .layout{flex:1;display:grid;grid-template-columns:270px 1fr 320px;min-height:0}
+  aside{overflow:auto;padding:14px;border-right:1px solid var(--line)}
+  aside.right{border-right:none;border-left:1px solid var(--line)}
+  h2{font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--dim);margin:18px 0 8px}
+  h2:first-child{margin-top:0}
+  .stat{background:var(--card);border:1px solid var(--line);border-radius:9px;padding:8px 10px;margin-bottom:8px;overflow:hidden}
+  .stat i{font-style:normal;color:var(--dim);font-size:9px;letter-spacing:.1em;text-transform:uppercase;display:block}
+  .stat b{font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block}
+  .turn{background:var(--card);border:1px solid var(--line);border-radius:9px;padding:8px 10px;margin-bottom:6px;cursor:pointer}
+  .turn:hover{border-color:var(--cold)}
+  .turn.on{border-color:var(--cold);box-shadow:0 0 0 1px var(--cold) inset}
+  .turn b{color:var(--dim);margin-right:6px}
+  .turn .p{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:230px}
+  .turn .f{color:var(--cold);font-size:11px;word-break:break-all}
+  .empty{color:var(--dim);border:1px dashed var(--line);border-radius:9px;padding:10px;font-size:11px}
+  main{position:relative;min-width:0}
+  canvas.gl{display:block;width:100%;height:100%}
+  #tip{position:fixed;pointer-events:none;background:#061713;border:1px solid var(--line);border-radius:8px;padding:6px 9px;font-size:11px;display:none;z-index:9;max-width:320px;word-break:break-all}
+  #sel b.big{display:block;font-size:13px;word-break:break-all;margin:2px 0 8px}
+  .kv{display:grid;grid-template-columns:88px 1fr;gap:3px 8px;font-size:12px}
+  .kv i{font-style:normal;color:var(--dim)}
+  .filelist{max-height:38vh;overflow:auto}
+  .file{display:block;color:var(--cold);font-size:11px;padding:1px 0;cursor:pointer;word-break:break-all}
+  .file:hover{text-decoration:underline}
+  .dock{flex:none;display:flex;align-items:center;gap:6px;padding:8px 16px;border-top:1px solid var(--line);overflow-x:auto}
+  .dock .t{min-width:26px;height:22px;border:1px solid var(--line);border-radius:6px;background:var(--card);color:var(--dim);font-size:10px;cursor:pointer}
+  .dock .t.on{border-color:var(--cold);color:var(--fg)}
+  .dock .note{color:var(--dim);font-size:10px;margin-left:8px;white-space:nowrap}
+</style>
+<script type="importmap">
+{"imports":{"three":"https://unpkg.com/three@0.160.0/build/three.module.js","three/addons/":"https://unpkg.com/three@0.160.0/examples/jsm/"}}
+</script>
+</head><body>
+<header><span class="dot"></span><h1>Ghost City</h1><span class="meta" id="meta">connecting…</span>
+  <span class="spacer"></span><span class="meta"><a href="/studio">studio</a> · <a href="/session">session</a> · <a href="/city2d">2D fallback</a></span>
+</header>
+<div class="layout">
+  <aside>
+    <h2>Session</h2>
+    <div class="stat"><i>repo</i><b id="repo">…</b></div>
+    <div class="stat"><i>git head</i><b id="head">…</b></div>
+    <div class="stat"><i>turns</i><b id="turnsN">0</b></div>
+    <div class="stat"><i>files touched</i><b id="filesN">0</b></div>
+    <h2>Turns</h2><div id="turns"></div>
+    <h2>Mode</h2><div id="mode" class="empty">…</div>
+  </aside>
+  <main><canvas class="gl" id="gl"></canvas><div id="tip"></div></main>
+  <aside class="right">
+    <h2>Selected tower</h2><div id="sel" class="empty">click a tower in the city</div>
+    <h2>Files in this session</h2><div id="filelist" class="filelist empty">none yet — the agent has not touched files</div>
+  </aside>
+</div>
+<div class="dock"><span class="meta">turns</span><span id="dock"></span><span class="note" id="docknote"></span></div>
+<script type="module">
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const $=id=>document.getElementById(id);
+const PRIORITY_LIGHT=0.5;
+let towers=[],byId=new Map(),selected=null,THREE=null,OrbitControls=null,renderer,scene,camera,controls,raycaster,hoverMesh=null,selMesh=null,meshGroup=null,threeReady=false,lastData=null,activeTurnN=0;
+
+function buildTowers(s){
+  const seen=new Map();
+  for(const cp of s.checkpoints||[]){
+    for(const f of cp.files||[]){
+      const cur=seen.get(f)||{path:f,loc:0,git:false,turn:cp.turnNumber,ts:cp.ts,sha:null};
+      if(cp.churn&&cp.churn[f]!=null){cur.loc+=cp.churn[f];cur.git=true;cur.sha=cur.sha||cp.sha;}
+      seen.set(f,cur);
+    }
+  }
+  towers=[...seen.values()].sort((a,b)=>a.ts.localeCompare(b.ts));
+  byId=new Map(towers.map(t=>[t.path,t]));
+}
+
+function renderPanels(s){
+  $("repo").textContent=s.repo||"—";
+  $("head").textContent=s.head?String(s.head).slice(0,10):"(no git)";
+  const turns=s.turns||[];
+  $("turnsN").textContent=String(turns.length);
+  $("filesN").textContent=String(towers.length);
+  $("mode").innerHTML=s.head?
+    "git shadow checkpoint active — tower height = churn (added+deleted lines from the real patch).":
+    "NOT a git repo — file-list checkpoints only; towers stay low because no patch exists. Run git init to scale the city by churn.";
+  $("turns").innerHTML=turns.slice(-9).reverse().map(t=>{
+    const q=esc(t.prompt||(t.id?"[assistant turn]":"[no prompt captured]"));
+    const fs=(t.files&&t.files.length)?('<span class="f">'+t.files.slice(0,3).map(esc).join(", ")+"</span>"):"";
+    return '<div class="turn" data-turn="'+t.index+'"><b>t'+t.index+"</b>"+ '<span class="p">'+q+"</span>"+fs+"</div>";
+  }).join("")||'<div class="empty">no turns yet — chat with your agent</div>';
+  [...document.querySelectorAll(".turn")].forEach(el=>el.onclick=()=>focbyTurn(Number(el.dataset.turn)));
+  $("filelist").className="filelist";
+  $("filelist").innerHTML=towers.map(t=>'<span class="file" data-p="'+esc(t.path)+'">'+esc(t.path)+"</span>").join("")||'<div class="empty">none yet — the agent has not touched files</div>';
+  [...document.querySelectorAll(".file")].forEach(el=>el.onclick=()=>selectTower(el.dataset.p));
+  $("dock").innerHTML=turns.map(t=>'<button class="t'+(t.index===activeTurnN?" on":"")+'" data-turn="'+t.index+'">t'+t.index+"</button>").join(" ")||'<span class="meta">—</span>';
+  [...document.querySelectorAll(".dock .t")].forEach(b=>b.onclick=()=>focbyTurn(Number(b.dataset.turn)));
+  $("docknote").textContent=turns.length?("hover the city or click files on the right — data is real, refreshed from this machine"):"";
+  $("meta").textContent=towers.length+" towers · "+turns.length+" turns · live";
+}
+
+function focbyTurn(n){activeTurnN=n;
+  [...document.querySelectorAll(".dock .t,.turn")].forEach(b=>b.classList.toggle("on",Number(b.dataset.turn)===n));
+  const f=towers.find(t=>t.turn===n);
+  if(f)selectTower(f.path);
+}
+
+async function initThree(){
+  THREE=await import("three");
+  ({OrbitControls}=await import("three/addons/controls/OrbitControls.js"));
+  const cv=$("gl");
+  renderer=new THREE.WebGLRenderer({canvas:cv,antialias:true});
+  renderer.setPixelRatio(devicePixelRatio);
+  scene=new THREE.Scene();scene.background=new THREE.Color(0x070d0b);
+  scene.fog=new THREE.Fog(0x070d0b,26,80);
+  camera=new THREE.PerspectiveCamera(46,1,0.1,300);
+  camera.position.set(14,13,16);
+  controls=new OrbitControls(camera,cv);
+  controls.enableDamping=true;controls.autoRotate=true;controls.autoRotateSpeed=0.55;
+  controls.maxPolarAngle=Math.PI/2.06;controls.minDistance=7;controls.maxDistance=64;
+  scene.add(new THREE.HemisphereLight(0xbfe8dd,0x0a1512,1.05));
+  const dir=new THREE.DirectionalLight(0xffffff,0.85);dir.position.set(12,20,8);scene.add(dir);
+  const grid=new THREE.GridHelper(60,60,0x1b3b34,0x12251f);if(grid)scene.add(grid);
+  meshGroup=new THREE.Group();scene.add(meshGroup);
+  raycaster=new THREE.Raycaster();
+  threeReady=true;resize();
+  cv.addEventListener("pointermove",onMove);
+  cv.addEventListener("click",onClick);
+  animate();
+}
+
+function heightOf(t){return t.git&&t.loc>0?Math.min(1.4+t.loc*0.16,14):(t.git?1.0:0.55)}
+
+function rebuildMeshes(){
+  if(!threeReady)return;
+  meshGroup.clear();
+  const n=Math.max(1,towers.length);
+  const cols=Math.ceil(Math.sqrt(n));
+  towers.forEach((t,i)=>{
+    const x=(i%cols-(cols-1)/2)*2.1,z=(Math.floor(i/cols)-(cols-1)/2)*2.1;
+    const h=heightOf(t);
+    const hot=t.git&&t.loc>0;
+    const hue=hot?168-Math.min(t.loc,86)/86*62:200;
+    const l=hue>140?0.34+Math.min(h,14)/14*0.2:0.42;
+    const geo=new THREE.BoxGeometry(1.22,h,1.22);
+    const mat=new THREE.MeshStandardMaterial({color:new THREE.Color().setHSL(hue/360,PRIORITY_LIGHT>0?0.52:0.1,Math.max(0.3,Math.min(0.72,0.38+h*0.02))),roughness:0.55,metalness:0.08});
+    const m=new THREE.Mesh(geo,mat);
+    m.position.set(x,h/2+0.02,z);
+    m.userData=t;
+    const edges=new THREE.LineSegments(new THREE.EdgesGeometry(geo),new THREE.LineBasicMaterial({color:0x0b1f1a,transparent:true,opacity:0.5}));
+    m.add(edges);
+    t._mesh=m;
+    meshGroup.add(m);
+  });
+}
+
+function animate(){requestAnimationFrame(animate);if(controls)controls.update();
+  if(controls&&controls.autoRotate&&Date.now()%1===0){}
+  if(renderer&&scene&&camera)renderer.render(scene,camera);}
+
+function resize(){const cv=$("gl"),box=cv.parentElement;renderer.setSize(box.clientWidth,box.clientHeight);camera.aspect=box.clientWidth/box.clientHeight;camera.updateProjectionMatrix();}
+
+function pickMesh(e){if(!threeReady)return null;const r=$("gl").getBoundingClientRect();
+  raycaster.setFromCamera(new THREE.Vector2(((e.clientX-r.left)/r.width)*2-1,-((e.clientY-r.top)/r.height)*2+1),camera);
+  const hit=raycaster.intersectObjects(meshGroup.children,false)[0];
+  return hit?hit.object:null;}
+
+function onMove(e){const tip=$("tip");const m=pickMesh(e);
+  if(hoverMesh&&hoverMesh!==selMesh)hoverMesh.material.emissive&&hoverMesh.material.emissive.setHex(0x000000);
+  hoverMesh=m;
+  if(m){m.material.emissive&&m.material.emissive.setHex(0x0e3e33);
+    const t=m.userData;tip.style.display="block";tip.style.left=e.clientX+14+"px";tip.style.top=e.clientY+10+"px";
+    tip.innerHTML="<b>"+esc(t.path)+"</b><br/>"+(t.git?("churn "+t.loc+" lines"):("touched (non-git — no patch)"))+" · turn t"+t.turn+(t.sha?' · <a href="/diff/'+t.sha+'" target="_blank">patch</a>':"");}
+  else tip.style.display="none";}
+
+function onClick(e){const m=pickMesh(e);if(m)selectTower(m.userData.path);}
+
+function selectTower(path){const t=byId.get(path);if(!t)return;selected=t;
+  if(selMesh)selMesh.material.emissive&&selMesh.material.emissive.setHex(0x000000);
+  selMesh=t._mesh||null;
+  if(selMesh)selMesh.material.emissive&&selMesh.material.emissive.setHex(0x0a5a48);
+  $("sel").className="stat";
+  $("sel").innerHTML="<b class='big'>"+esc(t.path)+"</b><div class='kv'>"+
+    "<i>churn</i><span>"+(t.git?t.loc+" lines":"no patch (non-git)")+"</span>"+
+    "<i>turn</i><span>t"+t.turn+"</span>"+
+    (t.sha?"<i>patch</i><span><a href='/diff/"+t.sha+"' target='_blank'>/diff view</a></span>":"")+
+    "<i>device</i><span>loopback 127.0.0.1 — never uploaded</span></div>";
+}
+
+async function tick(){try{
+  lastData=await fetch("/session").then(r=>r.json());
+  buildTowers(lastData);
+  renderPanels(lastData);
+  if(threeReady){rebuildMeshes();if(selected){const t=byId.get(selected.path);if(t){selected=t;}}}
+}catch(e){$("meta").textContent="reconnecting to recorder…"}}
+
+async function boot(){
+  try{await initThree();}catch(e){
+    document.querySelector("main").innerHTML='<div class="empty" style="margin:40px">3D engine unavailable (offline CDN). Use the zero-dependency 2D city: <a href="/city2d">/city2d</a> — same live data, served by the recorder.</div>';
+  }
+  tick();setInterval(tick,1700);
+  addEventListener("resize",()=>{if(threeReady)resize();});
+}
+boot();
+</script></body></html>`;
+}
+
 // ── helpers ──────────────────────────────────────────────────────────────────
 // Parse a unified diff into per-file churn (added+deleted lines) used as the
 // 3D city "height" — so towers stay a fact of the recording, never invented.
@@ -320,6 +543,11 @@ async function cmdWatch() {
     }
     if (req.method === "GET" && req.url === "/city") {
       res.writeHead(200, { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" });
+      res.end(cityHtml3d());
+      return;
+    }
+    if (req.method === "GET" && req.url === "/city2d") {
+      res.writeHead(200, { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" });
       res.end(cityHtml());
       return;
     }
@@ -429,7 +657,7 @@ async function cmdWatch() {
   if (!session.head) console.log(`    git      none — file recording only (run git init to enable shadow-git checkpoints)`);
   console.log(`    app      ${appUrl}`);
   console.log(`    studio   ${eventsBase}  ← detail: turns, checkpoints, samples`);
-  console.log(`    city     ${eventsBase}/city  ← playground kota live (tanpa npm run dev)`);
+  console.log(`    city     ${eventsBase}/city  ← playground kota 3D live (tanpa npm run dev)`);
   console.log(`    replay   full 3D dashboard: repo → npm run dev → /playground?live=1`);
   console.log(`    adapter  ${eventsBase}/events (OpenCode plugin target)`);
   console.log(`    sync     ${sync}${sync === "off" ? "  (local-only) — run: ghost setup to enable" : ""}`);
