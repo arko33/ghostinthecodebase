@@ -1,0 +1,874 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "GhostInTheCodebase API",
+    "version": "1.0.0",
+    "description": "Owner-scoped invoice API used as the live test target for the GhostInTheCodebase demo.\n\nAUTHENTICATION\nEvery request must send the header x-user-id. Valid values: alice, bob.\nMissing or unknown user returns 401 unauthorized.\n\nSEED DATA (deterministic, safe to assert on)\ninv-1001 belongs to alice (Acme Corp, 1200 USD, status sent)\ninv-1002 belongs to bob (Globex, 850 USD, status draft)\n\nSECURITY RULE\nA user must never read another user invoice.\nGET /api/invoices/{id} returns 403 forbidden when the invoice exists but belongs to another user,\nand 404 not_found when the id does not exist.\n\nOBSERVABILITY ENDPOINTS\nGET /api/health returns the runtime probe the metrics runner polls: ok, cpuPct, rssMb, heapUsedMb, heapTotalMb, uptimeSec, ts.\nGET /api/autopsy runs the autopsy engine over the recorded demo session and returns the detected anomalies plus one autopsy per anomaly (blamed turn, severity, root cause, heal prompt)."
+  },
+  "servers": [
+    {
+      "url": "https://ghostinthecodebase.vercel.app",
+      "description": "Production"
+    }
+  ],
+  "tags": [
+    {
+      "name": "invoices",
+      "description": "Owner-scoped invoice access"
+    },
+    {
+      "name": "health",
+      "description": "Runtime health probe polled by the metrics runner"
+    },
+    {
+      "name": "autopsy",
+      "description": "Anomaly detection and turn attribution"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "userHeader": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "x-user-id",
+        "description": "Caller identity header. Value: alice or bob."
+      }
+    }
+  },
+  "paths": {
+    "/api/invoices": {
+      "get": {
+        "tags": [
+          "invoices"
+        ],
+        "operationId": "listInvoices",
+        "summary": "List invoices owned by the caller",
+        "description": "Returns only invoices whose ownerId equals x-user-id. Must never leak another owner invoice.",
+        "security": [
+          {
+            "userHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-user-id",
+            "in": "header",
+            "required": true,
+            "description": "Caller identity. Valid values: alice, bob. Missing or unknown returns 401.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "alice",
+                "bob"
+              ],
+              "example": "bob"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Owner-scoped list. For bob this contains inv-1002 and must NOT contain inv-1001.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "invoices"
+                  ],
+                  "properties": {
+                    "invoices": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "required": [
+                          "id",
+                          "ownerId",
+                          "customer",
+                          "amount",
+                          "currency",
+                          "status",
+                          "createdAt"
+                        ],
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "example": "inv-1001"
+                          },
+                          "ownerId": {
+                            "type": "string",
+                            "example": "alice"
+                          },
+                          "customer": {
+                            "type": "string",
+                            "example": "Acme Corp"
+                          },
+                          "amount": {
+                            "type": "number",
+                            "example": 1200
+                          },
+                          "currency": {
+                            "type": "string",
+                            "example": "USD"
+                          },
+                          "status": {
+                            "type": "string",
+                            "enum": [
+                              "draft",
+                              "sent",
+                              "paid"
+                            ],
+                            "example": "sent"
+                          },
+                          "createdAt": {
+                            "type": "string",
+                            "example": "2026-10-20T08:00:00.000Z"
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                "example": {
+                  "invoices": [
+                    {
+                      "id": "inv-1002",
+                      "ownerId": "bob",
+                      "customer": "Globex",
+                      "amount": 850,
+                      "currency": "USD",
+                      "status": "draft",
+                      "createdAt": "2026-10-20T09:00:00.000Z"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or unknown x-user-id",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "example": "unauthorized"
+                    }
+                  }
+                },
+                "example": {
+                  "error": "unauthorized"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "invoices"
+        ],
+        "operationId": "createInvoice",
+        "summary": "Create an invoice for the caller",
+        "description": "Creates an invoice owned by x-user-id and returns it with status 201.",
+        "security": [
+          {
+            "userHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-user-id",
+            "in": "header",
+            "required": true,
+            "description": "Caller identity. Valid values: alice, bob. Missing or unknown returns 401.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "alice",
+                "bob"
+              ],
+              "example": "alice"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "customer",
+                  "amount"
+                ],
+                "properties": {
+                  "customer": {
+                    "type": "string",
+                    "example": "Initech"
+                  },
+                  "amount": {
+                    "type": "number",
+                    "example": 300
+                  },
+                  "currency": {
+                    "type": "string",
+                    "example": "USD"
+                  }
+                }
+              },
+              "example": {
+                "customer": "Initech",
+                "amount": 300
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created invoice owned by the caller",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "id",
+                    "ownerId",
+                    "customer",
+                    "amount",
+                    "currency",
+                    "status",
+                    "createdAt"
+                  ],
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "example": "inv-1001"
+                    },
+                    "ownerId": {
+                      "type": "string",
+                      "example": "alice"
+                    },
+                    "customer": {
+                      "type": "string",
+                      "example": "Acme Corp"
+                    },
+                    "amount": {
+                      "type": "number",
+                      "example": 1200
+                    },
+                    "currency": {
+                      "type": "string",
+                      "example": "USD"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "draft",
+                        "sent",
+                        "paid"
+                      ],
+                      "example": "sent"
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "example": "2026-10-20T08:00:00.000Z"
+                    }
+                  }
+                },
+                "example": {
+                  "id": "inv-4321",
+                  "ownerId": "alice",
+                  "customer": "Initech",
+                  "amount": 300,
+                  "currency": "USD",
+                  "status": "draft",
+                  "createdAt": "2026-10-20T12:00:00.000Z"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Body is not valid JSON",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "example": "invalid_json"
+                    }
+                  }
+                },
+                "example": {
+                  "error": "invalid_json"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or unknown x-user-id",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "example": "unauthorized"
+                    }
+                  }
+                },
+                "example": {
+                  "error": "unauthorized"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "customer is missing or amount is not a number",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "example": "customer and numeric amount are required"
+                    }
+                  }
+                },
+                "example": {
+                  "error": "customer and numeric amount are required"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/invoices/{id}": {
+      "get": {
+        "tags": [
+          "invoices"
+        ],
+        "operationId": "getInvoiceById",
+        "summary": "Fetch one invoice, owner-scoped",
+        "description": "200 when x-user-id owns the invoice. 403 when it exists but belongs to another user (BOLA guard). 404 when the id does not exist. 401 when x-user-id is missing.",
+        "security": [
+          {
+            "userHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Invoice id. Use inv-1001 (owned by alice) or inv-1002 (owned by bob).",
+            "schema": {
+              "type": "string",
+              "example": "inv-1001"
+            }
+          },
+          {
+            "name": "x-user-id",
+            "in": "header",
+            "required": true,
+            "description": "Caller identity. Valid values: alice, bob. Missing or unknown returns 401.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "alice",
+                "bob"
+              ],
+              "example": "bob"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Invoice owned by the caller",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "invoice"
+                  ],
+                  "properties": {
+                    "invoice": {
+                      "type": "object",
+                      "required": [
+                        "id",
+                        "ownerId",
+                        "customer",
+                        "amount",
+                        "currency",
+                        "status",
+                        "createdAt"
+                      ],
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "example": "inv-1001"
+                        },
+                        "ownerId": {
+                          "type": "string",
+                          "example": "alice"
+                        },
+                        "customer": {
+                          "type": "string",
+                          "example": "Acme Corp"
+                        },
+                        "amount": {
+                          "type": "number",
+                          "example": 1200
+                        },
+                        "currency": {
+                          "type": "string",
+                          "example": "USD"
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "draft",
+                            "sent",
+                            "paid"
+                          ],
+                          "example": "sent"
+                        },
+                        "createdAt": {
+                          "type": "string",
+                          "example": "2026-10-20T08:00:00.000Z"
+                        }
+                      }
+                    }
+                  }
+                },
+                "example": {
+                  "invoice": {
+                    "id": "inv-1001",
+                    "ownerId": "alice",
+                    "customer": "Acme Corp",
+                    "amount": 1200,
+                    "currency": "USD",
+                    "status": "sent",
+                    "createdAt": "2026-10-20T08:00:00.000Z"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or unknown x-user-id",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "example": "unauthorized"
+                    }
+                  }
+                },
+                "example": {
+                  "error": "unauthorized"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Invoice exists but belongs to another user. Cross-owner read must be denied.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "example": "forbidden"
+                    }
+                  }
+                },
+                "example": {
+                  "error": "forbidden"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Invoice id does not exist",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "example": "not_found"
+                    }
+                  }
+                },
+                "example": {
+                  "error": "not_found"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/invoices/inv-1001": {
+      "get": {
+        "tags": [
+          "invoices"
+        ],
+        "operationId": "getInvoiceInv1001",
+        "summary": "Fetch invoice inv-1001 (concrete seed id, owner alice)",
+        "description": "Concrete form of GET /api/invoices/{id} for inv-1001. alice gets 200. bob must get 403 forbidden — this is the cross-owner BOLA check.",
+        "security": [
+          {
+            "userHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-user-id",
+            "in": "header",
+            "required": true,
+            "description": "Caller identity. Valid values: alice, bob. Missing or unknown returns 401.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "alice",
+                "bob"
+              ],
+              "example": "bob"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Returned only when x-user-id is alice",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "invoice"
+                  ],
+                  "properties": {
+                    "invoice": {
+                      "type": "object",
+                      "required": [
+                        "id",
+                        "ownerId",
+                        "customer",
+                        "amount",
+                        "currency",
+                        "status",
+                        "createdAt"
+                      ],
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "example": "inv-1001"
+                        },
+                        "ownerId": {
+                          "type": "string",
+                          "example": "alice"
+                        },
+                        "customer": {
+                          "type": "string",
+                          "example": "Acme Corp"
+                        },
+                        "amount": {
+                          "type": "number",
+                          "example": 1200
+                        },
+                        "currency": {
+                          "type": "string",
+                          "example": "USD"
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "draft",
+                            "sent",
+                            "paid"
+                          ],
+                          "example": "sent"
+                        },
+                        "createdAt": {
+                          "type": "string",
+                          "example": "2026-10-20T08:00:00.000Z"
+                        }
+                      }
+                    }
+                  }
+                },
+                "example": {
+                  "invoice": {
+                    "id": "inv-1001",
+                    "ownerId": "alice",
+                    "customer": "Acme Corp",
+                    "amount": 1200,
+                    "currency": "USD",
+                    "status": "sent",
+                    "createdAt": "2026-10-20T08:00:00.000Z"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or unknown x-user-id",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "example": "unauthorized"
+                    }
+                  }
+                },
+                "example": {
+                  "error": "unauthorized"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Cross-owner read: bob requesting alice invoice must be denied",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "example": "forbidden"
+                    }
+                  }
+                },
+                "example": {
+                  "error": "forbidden"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Invoice id does not exist",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "example": "not_found"
+                    }
+                  }
+                },
+                "example": {
+                  "error": "not_found"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/health": {
+      "get": {
+        "tags": [
+          "health"
+        ],
+        "operationId": "getHealth",
+        "summary": "Runtime health probe",
+        "description": "Returns live process metrics. No auth header required. Always 200 when the app is up.",
+        "responses": {
+          "200": {
+            "description": "Runtime snapshot of the app process.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "ok",
+                    "cpuPct",
+                    "rssMb",
+                    "heapUsedMb",
+                    "heapTotalMb",
+                    "uptimeSec",
+                    "ts"
+                  ],
+                  "properties": {
+                    "ok": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "cpuPct": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 100,
+                      "example": 3
+                    },
+                    "rssMb": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "example": 120
+                    },
+                    "heapUsedMb": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "example": 40
+                    },
+                    "heapTotalMb": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "example": 64
+                    },
+                    "uptimeSec": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "example": 900
+                    },
+                    "ts": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/autopsy": {
+      "get": {
+        "tags": [
+          "autopsy"
+        ],
+        "operationId": "runAutopsy",
+        "summary": "Run the autopsy engine over the demo session",
+        "description": "Deterministic: the recorded demo session always yields one memory-leak anomaly (kind \"leak\", metric \"mem\", severity \"high\") detected on turn t5 but blamed on turn t4 — the turn that added the unbounded cache in src/store/invoices.ts. healed is true because the metric recovers after the fix turn.",
+        "responses": {
+          "200": {
+            "description": "Detected anomalies and one autopsy per anomaly.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "sessionId",
+                    "anomalies",
+                    "autopsies"
+                  ],
+                  "properties": {
+                    "sessionId": {
+                      "type": "string",
+                      "example": "sess-demo-001"
+                    },
+                    "anomalies": {
+                      "type": "array",
+                      "minItems": 1,
+                      "items": {
+                        "type": "object",
+                        "required": [
+                          "id",
+                          "kind",
+                          "turnId",
+                          "severity",
+                          "metric",
+                          "detectedAt",
+                          "note"
+                        ],
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "example": "anom-leak-4"
+                          },
+                          "kind": {
+                            "type": "string",
+                            "example": "leak"
+                          },
+                          "turnId": {
+                            "type": "string",
+                            "example": "t5"
+                          },
+                          "severity": {
+                            "type": "string",
+                            "example": "high"
+                          },
+                          "metric": {
+                            "type": "string",
+                            "example": "mem"
+                          },
+                          "detectedAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "note": {
+                            "type": "string",
+                            "example": "Memory grows 38.0 MB per sample inside a 8-sample window, with no plateau."
+                          }
+                        }
+                      }
+                    },
+                    "autopsies": {
+                      "type": "array",
+                      "minItems": 1,
+                      "items": {
+                        "type": "object",
+                        "required": [
+                          "id",
+                          "anomalyId",
+                          "blamedTurnId",
+                          "rootCause",
+                          "fixPrompt",
+                          "healed"
+                        ],
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "example": "aut-anom-leak-4"
+                          },
+                          "anomalyId": {
+                            "type": "string",
+                            "example": "anom-leak-4"
+                          },
+                          "blamedTurnId": {
+                            "type": "string",
+                            "example": "t4"
+                          },
+                          "rootCause": {
+                            "type": "string"
+                          },
+                          "fixPrompt": {
+                            "type": "string"
+                          },
+                          "healed": {
+                            "type": "boolean",
+                            "example": true
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
