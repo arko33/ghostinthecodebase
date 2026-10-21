@@ -170,6 +170,7 @@ flowchart TB
     RM --> LQ
     APP --> RM
     LQ -->|consented sync:<br/>metadata + metrics,<br/>never source code| API --> DB --> UI
+    HUB[Agent Tools Hub] -.->|discover ·<br/>install ·<br/>configure| GHOSTLOCAL
 ```
 
 The demo dashboard in this repository is the **UX of Ghost Cloud**, replaying a
@@ -190,15 +191,52 @@ and *labeled as estimated*.
 
 ## 🧭 Product direction & roadmap
 
-Ghost ships as **hybrid: a local recorder + a cloud dashboard.**
+Ghost ships as **hybrid: a local recorder + a cloud dashboard.** Neither a
+pure SaaS (cloud servers cannot see your filesystem, your processes, or the
+app running on your laptop) nor a pure CLI (results get hard to share,
+review, and onboard onto).
 
-- **Ghost Local** runs next to the repository: watcher, checkpoints, probes,
-  adapters. Recording must survive without any cloud account.
+- **Ghost Local** runs next to the repository: filesystem watcher,
+  checkpoints/shadow-git, runtime probes, agent adapters, and a local queue.
+  Recording must work fully **without any cloud account** — local-only mode is
+  the default.
 - **Ghost Cloud** owns accounts, projects, session history and the autopsy
-  view — the dashboard in this repo is its UX.
-- Data policy is explicit: metadata, metrics and summary verdicts sync
-  **opt-in**; diffs/prompts are consent-gated; **source code and secrets never
-  leave the machine by default**, with secret scrubbing before any sync.
+  view. Foundation stack: **Vercel** for the dashboard + Session API and
+  **PostgreSQL** for structured metadata, metrics, and summary verdicts.
+  The cloud never reads files off your machine — the local recorder is the
+  only thing that observes, and it syncs deliberately.
+- **Agent adapters** normalize each agent's events into **one internal event
+  contract**: a plugin watches OpenCode session/file/tool events, the adapter
+  translates them, and the shared recorder + autopsy engine never change per
+  agent. Antigravity and others plug in later without rewriting the engine.
+
+**Agent Tools Hub is the doorway, not the workspace** — discover Ghost, pick
+your agent, read compatibility + install steps there; recording always runs
+on the user's machine, next to their code.
+
+### The user journey (target)
+
+1. Sign in, create a project, point it at a repository → `project_id`.
+2. Connect the machine: Ghost Local authenticates as a **device** via a
+   one-time pairing code confirmed in the browser — the agent's account is
+   never OAuth'd into Ghost.
+3. Turn on an agent adapter (OpenCode first). No adapter? Modes B/C still
+   record; turn identity is then marked as **estimated, never invented**.
+4. Ghost takes a baseline, watches changes, probes the running app.
+5. The dashboard shows timeline, diff, metrics, autopsy — **local-only by
+   default**, sync is explicit opt-in.
+
+### What syncs to the cloud — an explicit policy
+
+| Data | Policy |
+| --- | --- |
+| Project name, session ids, timestamps | sync |
+| Runtime metrics + probe results | sync (configurable) |
+| Autopsy summaries | sync (configurable) |
+| Diffs and file names | opt-in, consent-gated |
+| Agent prompts / responses | opt-in — may contain secrets |
+| Full source code | **never by default** |
+| Tokens, API keys, secrets | **never — scrubbed before any sync** |
 
 ```mermaid
 timeline
@@ -207,11 +245,26 @@ timeline
     MVP 2 : Ghost Cloud — auth, projects, session API, dashboard
     MVP 3 : CLI ↔ cloud pairing : consented sync (metadata + metrics only)
     MVP 4 : OpenCode adapter streams live session events : recorder accepts real turns
-    MVP 5 : More agents · resilient sync · CI workflows
+    MVP 5 : Antigravity adapter · resilient sync · CI workflows · Agent Tools Hub listing
 ```
 
 The recording modes and adapters are deliberately behind one **internal event
 contract** (`src/types.ts`): agents vary, the engine does not.
+
+Recording works in three layers, from always-works to richest-context:
+
+| Mode | Mechanism | Context |
+| --- | --- | --- |
+| **B** — filesystem + git | watch the worktree, checkpoint every change burst | works with *any* agent, no turn identity |
+| **C** — runtime monitoring | HTTP probes + process metrics vs. measured baseline | evidence for the autopsy, not the cause by itself |
+| **A** — direct agent integration | plugin/hook events for agents that support them (OpenCode plugins & hooks, SSE; Antigravity equivalents) | full session/turn identity |
+
+**Mode B/C are the base; Mode A is added per agent.** Autopsy never fabricates
+a turn id: when an agent event provides one it is used; otherwise attribution
+is time-based and explicitly *labeled as estimated*. Agent events (coding
+activity) and runtime events (app condition) are two separate data streams —
+the autopsy engine joins them only through timestamps, session identity,
+checkpoints, and test evidence.
 
 ---
 
