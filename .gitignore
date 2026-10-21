@@ -35,5 +35,9 @@ testsprite_tests/
 testsprite_tests/tmp/
 testsprite_tests/tmp/config.json
 
+# local TestSprite scratch (run summaries, exported code, probes)
+.ts-*
+.testsprite-tests.json
+
 .vercel
 .env*

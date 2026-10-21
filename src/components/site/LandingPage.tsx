@@ -959,6 +959,42 @@ export default function LandingPage() {
                 No agent SDK. No lock-in. Ghost watches the filesystem and the
                 process, so every tool produces the same recording.
               </p>
+              <div
+                className="quickstart__steps"
+                style={{ display: "grid", gap: 14, marginTop: 26 }}
+              >
+                {[
+                  {
+                    n: "01",
+                    t: "Install the recorder",
+                    d: "One curl line (macOS, Linux, Windows) drops the ghost CLI into ~/.ghost without npm. Requires Node \u2265 18.",
+                  },
+                  {
+                    n: "02",
+                    t: "Record a real session",
+                    d: "Run ghost watch in your project. Any agent works: the OpenCode plugin streams events live, everyone else is captured from the filesystem + runtime probes.",
+                  },
+                  {
+                    n: "03",
+                    t: "Inspect, blame, heal",
+                    d: "Scrub the tape in the playground, read the autopsy verdict naming the turn that broke it, copy the heal prompt to your agent - or roll the file back in one click.",
+                  },
+                ].map((s) => (
+                  <div key={s.n} style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
+                    <span
+                      className="eyebrow"
+                      style={{ marginTop: 3, letterSpacing: "0.08em" }}
+                    >
+                      {s.n}
+                    </span>
+                    <span style={{ maxWidth: 520 }}>
+                      <strong>{s.t}</strong>
+                      <br />
+                      <span style={{ opacity: 0.72 }}>{s.d}</span>
+                    </span>
+                  </div>
+                ))}
+              </div>
               <div className="quickstart__facts">
                 <span>
                   <Check size={14} weight="light" aria-hidden="true" />
@@ -972,14 +1008,24 @@ export default function LandingPage() {
                   <Check size={14} weight="light" aria-hidden="true" />
                   Local by default
                 </span>
+                <span>
+                  <Check size={14} weight="light" aria-hidden="true" />
+                  Metadata-only sync
+                </span>
               </div>
-              <div style={{ marginTop: 28 }}>
+              <div style={{ marginTop: 28, display: "flex", gap: 12, flexWrap: "wrap" }}>
                 <Button
                   href={PLAYGROUND_URL}
                   variant="secondary"
                   icon={<TerminalIcon size={14} weight="light" aria-hidden="true" />}
                 >
                   Skip setup, open the replay
+                </Button>
+                <Button
+                  href={`${GITHUB_URL}#readme`}
+                  variant="secondary"
+                >
+                  Full setup docs
                 </Button>
               </div>
             </div>

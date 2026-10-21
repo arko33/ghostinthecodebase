@@ -38,6 +38,8 @@ Ghost is **agent-agnostic by construction**: it watches the *filesystem and the
 running process*, not the agent. Cursor, Claude Code, Codex, OpenCode, or a
 human typing manually — they all produce the same recording.
 
+![GhostInTheCodebase landing — the bottleneck story over the 3D code city](publics/landing1.png)
+
 ---
 
 ## 👤 The 60-second judge walkthrough
@@ -54,11 +56,19 @@ human typing manually — they all produce the same recording.
 5. Every step is rendered in a **3D code city**: buildings are files, heat
    auras are runtime stress, so you *feel* the regression before you read it.
 
+**The replay dashboard — tape rail, 3D city, autopsy verdict on turn 4:**
+
+![Playground — code city with the blame focused on turn 4, diff + RSS chart crossing the threshold](publics/playgroundfocuson-t4.png)
+
+**Full session view — seven turns, timeline dock at the bottom, live metrics:**
+
+![Playground — full replay view with tape rail and timeline](publics/playground.png)
+
 > 🔍 **Why this is honest:** the demo session is a committed fixture
 > (`src/data/fixture.ts`), and every verdict is computed live by
 > `src/autopsy/engine.ts` from that data — nothing is hard-coded into the UI.
-> The capture path underneath is partially scaffolded and its real status is
-> documented in the [status table](#-honest-status).
+> The recorder underneath is live and shipped (see the
+> [status table](#-honest-status)).
 
 ---
 
@@ -77,17 +87,18 @@ human typing manually — they all produce the same recording.
 | 7 | 🤖 **AI panel** | `src/components/AIPanel.tsx` | Reads the autopsy verdict and drafts the next *fix prompt* for the user's agent — the "heal" half of the loop. |
 | 8 | 💳 **Live target API** | `app/api/invoices/*` | A realistic invoices API the suite can poke: auth, ownership, validation. It is the application Ghost observes. |
 
-### Plugged in, then switched on
+### Plugged in and running live
 
-This is the capture layer. The **contracts are defined**, the wiring to real
-sources is the next milestone (see [status](#-honest-status) and
-[roadmap](#-product-direction--roadmap)):
+The capture layer is no longer a sketch — it ships in this repository and runs
+today:
 
 | Module | Contract | State |
 | --- | --- | --- |
-| `src/collector/opencode.ts` | `CollectorHandle` → stream `Turn`s from an OpenCode session | scaffold — event mapping designed (`session.diff`, `tool.execute`, `file.edited`), SSE wiring pending |
-| `src/runner/metrics.ts` | `MetricSample` stream tagged with the active turn | scaffold — sampling loop pending |
-| Checkpoint / rollback | commit + diff + restore per change burst | planned (shadow-git design) |
+| `packages/ghost` CLI | `ghost watch / status / sessions / setup` — records real sessions into a shadow-git store | **done** — one curl line to install, no npm |
+| `packages/ghost/lib/shadowgit.mjs` | checkpoints + diffs per change burst, never touches HEAD | **done** (throwaway index + `commit-tree`) |
+| `packages/ghost/lib/probes.mjs` | `MetricSample` stream tagged with the active turn (polls `/api/health`) | **done** — runtime probes (Mode C) |
+| `packages/opencode-plugin` | Mode A: streams real OpenCode session events into the recorder | **done** — posts file/tool events to the local recorder |
+| Ghost Cloud (`/login`, `/pair`, `/api/v1/*`) | GitHub OAuth, device pairing codes, session sync to Neon Postgres | **done** — live on the public deployment |
 
 > Ghost never needs your agent account. Mode B/C below record everything from
 > the outside; Mode A upgrades fidelity per agent.
@@ -241,11 +252,11 @@ on the user's machine, next to their code.
 ```mermaid
 timeline
     title Ghost milestones
-    MVP 1 : Local recorder persists a session to file : dashboard loads it
-    MVP 2 : Ghost Cloud — auth, projects, session API, dashboard
-    MVP 3 : CLI ↔ cloud pairing : consented sync (metadata + metrics only)
-    MVP 4 : OpenCode adapter streams live session events : recorder accepts real turns
-    MVP 5 : Antigravity adapter · resilient sync · CI workflows · Agent Tools Hub listing
+    MVP 1 done : Local recorder persists a session : shadow-git store, dashboard replay
+    MVP 2 done : Ghost Cloud - auth, projects, session API
+    MVP 3 done : CLI + cloud pairing : consented sync, metadata and metrics only
+    MVP 4 done : OpenCode adapter streams live session events : recorder accepts real turns
+    MVP 5 next : Antigravity adapter : resilient sync : CI workflows : Agent Tools Hub listing
 ```
 
 The recording modes and adapters are deliberately behind one **internal event
@@ -276,8 +287,13 @@ checkpoints, and test evidence.
 | --- | --- |
 | `/` | Landing: the loop, the city, the proof. No login needed. |
 | `/playground` | The product surface: tape rail, 3D city, autopsy panel, timeline dock. |
+| `/login` | Sign in with GitHub (OAuth) — the human half of Ghost Cloud. |
+| `/pair` | Confirm a device pairing code from the `ghost` CLI. |
 | `/api/invoices` | Live target API exercised by the test suite. |
 | `/api/invoices/[id]` | Single-invoice read — the ownership demo surface. |
+| `/api/auth/github`, `/api/auth/logout` | OAuth start + callback, session cookie end. |
+| `/api/v1/pair` (+ `/confirm`) | Issue a time-boxed pairing code; agents confirm it after the human approves. |
+| `/api/v1/sessions` | Session sync for paired devices (metadata, metrics, summaries — never source). |
 
 ### Target API contract
 
@@ -296,13 +312,28 @@ by `alice` — so every status code above is reproducible on demand.
 The API above is deliberately small and observable, so an end-to-end suite can
 be asserted precisely:
 
-**Suite status:** green — 23/23 tests pass against
-`https://ghostinthecodebase.vercel.app` (verified with the TestSprite CLI batch
-runner). The loop it documents: the suite flagged two real issues — a live
-BOLA hole on preview (missing `SECURE_MODE` env) and per-instance state loss
-on serverless — both fixed and narrated in `docs/test-prd.md` → *Suite
-maintenance log*. The PR check reruns this suite on every push and holds the
-merge.
+**Suite status:** green — **24/24** (`23` unit-style backend tests + `1`
+integration flow) against `https://ghostinthecodebase.vercel.app`. Verified
+three ways:
+
+1. **CLI batch executions** — TestSprite CLI, all tests passed
+   (executions [`ddf5126a`](https://www.testsprite.com/dashboard-v3/o/24abe963-d8fe-5bb8-8011-903daea7f178/projects/b14ba0a9-90d6-4c20-873e-583c7783a9fc/execution/ddf5126a-c6e9-4436-baff-e48b4faad841) and later re-runs).
+2. **GitHub Actions check** — `.github/workflows/testsprite.yml` reruns the
+   suite on every pull request; it went green on
+   [PR #5](https://github.com/arko33/ghostinthecodebase/pull/5),
+   [PR #6](https://github.com/arko33/ghostinthecodebase/pull/6) and
+   [PR #7](https://github.com/arko33/ghostinthecodebase/pull/7).
+3. **Exported test code** — the exact tests TestSprite executes are committed
+   under [`docs/testsprite-exports/`](docs/testsprite-exports) for full
+   transparency.
+
+The work behind that green: the suite flagged two real issues — a live BOLA
+hole on preview (missing `SECURE_MODE` env) and per-instance state loss on
+serverless — both fixed and narrated in `docs/test-prd.md` → *Suite
+maintenance log*. The list/shape tests were then hardened to be
+count-tolerant (the suite's own create tests legitimately add records on
+shared instances) and the integration flow was re-synced to the deployed
+contract after a test-code/signature mismatch caused portal-only failures.
 
 
 | # | Case | Expected |
@@ -458,18 +489,31 @@ ghostinthecodebase/
 ├─ app/
 │  ├─ page.tsx                  # landing
 │  ├─ playground/page.tsx       # playground route
+│  ├─ login/page.tsx            # GitHub sign-in (Ghost Cloud)
+│  ├─ pair/page.tsx             # device pairing confirm
 │  ├─ styles/{landing,dashboard}.css
-│  └─ api/invoices/             # live target API (+ [id]) 
+│  └─ api/
+│     ├─ invoices/                  # live target API (+ [id])
+│     ├─ auth/github/               # OAuth start + callback (+ logout)
+│     └─ v1/                        # pair (+ confirm), sessions — Ghost Cloud sync
 ├─ src/
 │  ├─ components/               # Dashboard, AIPanel, CodeDiff, GhostCity, MetricsChart
 │  │  ├─ playground/            # AutopsyPanel, SessionBar, TimelineDock, city scene
 │  │  └─ site/                  # landing engine: SceneLayer, GhostCanvas, Terminal, ...
 │  ├─ data/fixture.ts           # the recorded demo session
 │  ├─ store/invoices.ts         # in-memory store with ownership-scoped reads
-│  ├─ collector/opencode.ts     # OpenCode event adapter — scaffold
-│  ├─ runner/metrics.ts         # runtime metrics sampler — scaffold
+│  ├─ collector/opencode.ts     # OpenCode event contract (TS mirror of the shipped plugin)
+│  ├─ runner/metrics.ts         # MetricSample contract (TS mirror of ghost probes)
 │  ├─ autopsy/engine.ts         # detection + attribution + heal check
 │  └─ types.ts                  # Turn, MetricSample, Session contracts
+├─ packages/
+│  ├─ ghost/                    # the local recorder CLI — install.sh / install.ps1 (curl, no npm)
+│  │  ├─ ghost.mjs              # setup / watch / status / sessions commands
+│  │  └─ lib/                   # shadow-git checkpoints, session store, runtime probes
+│  └─ opencode-plugin/          # Mode A adapter: streams OpenCode events to the recorder
+├─ docs/
+│  ├─ test-prd.md               # suite maintenance log (BOLA catch, per-instance findings)
+│  └─ testsprite-exports/       # the exact test code TestSprite executes
 └─ publics/ghost.png            # brand asset
 ```
 
