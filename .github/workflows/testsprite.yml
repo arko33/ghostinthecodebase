@@ -1,0 +1,66 @@
+
+# TestSprite regression gate — runs the portal suite on every pull request.
+# Backend tests target the live app defined in docs/openapi.json,
+# regardless of the preview deployment URL.
+
+name: TestSprite
+
+on:
+  pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: testsprite-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  testsprite:
+    if: >-
+      github.event_name != 'pull_request' ||
+      (
+        github.event.pull_request.head.repo.full_name == github.repository &&
+        !github.event.pull_request.draft
+      )
+
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install TestSprite CLI
+        run: npm install --global @testsprite/testsprite-cli@latest
+
+      - name: Run TestSprite suite
+        env:
+          TESTSPRITE_API_KEY: ${{ secrets.TESTSPRITE_API_KEY }}
+        run: |
+          testsprite ci run \
+            --project "aa7e92b6-93ed-43a2-8cdf-9d4889269c86" \
+            --env "default" \
+            --timeout 600 \
+            --fail-on-skipped \
+            --summary-file testsprite-summary.json
+
+      - name: Upload TestSprite summary
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: testsprite-results
+          path: testsprite-summary.json
+          if-no-files-found: ignore
