@@ -971,13 +971,18 @@ export default function LandingPage() {
                   },
                   {
                     n: "02",
-                    t: "Record a real session",
-                    d: "Run ghost watch in your project. Any agent works: the OpenCode plugin streams events live, everyone else is captured from the filesystem + runtime probes.",
+                    t: "Connect OpenCode (Mode A)",
+                    d: "Copy the one-file adapter into .opencode/plugins/ghost.ts - OpenCode then reports every turn boundary to the recorder, so the timeline uses real turn ids.",
                   },
                   {
                     n: "03",
+                    t: "Record any session",
+                    d: "Run ghost watch in your project. With the plugin installed, turns stream live; with any other agent (Cursor, Claude Code, a human) the filesystem watcher + runtime probes record everything from the outside - turns marked estimated, never invented.",
+                  },
+                  {
+                    n: "04",
                     t: "Inspect, blame, heal",
-                    d: "Scrub the tape in the playground, read the autopsy verdict naming the turn that broke it, copy the heal prompt to your agent - or roll the file back in one click.",
+                    d: "Scrub the tape in the playground, read the autopsy verdict naming the turn that broke it, copy the heal prompt to your agent - or roll the file back in one click. ghost setup pairs your device for metadata-only sync to Ghost Cloud.",
                   },
                 ].map((s) => (
                   <div key={s.n} style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>

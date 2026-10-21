@@ -6,6 +6,7 @@ import { useInView, useReducedMotion } from "./hooks";
 
 const COMMANDS = [
   "curl -fsSL https://raw.githubusercontent.com/arko33/ghostinthecodebase/main/packages/ghost/install.sh | bash",
+  "curl -o .opencode/plugins/ghost.ts https://raw.githubusercontent.com/arko33/ghostinthecodebase/main/packages/opencode-plugin/index.ts",
   "ghost watch --repo . --app-url http://localhost:3000",
   "ghost status",
 ];
