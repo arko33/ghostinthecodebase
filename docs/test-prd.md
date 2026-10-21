@@ -76,6 +76,13 @@ bodies use the machine-readable `{"error": "..."}` shape shown above.
 - 2026-10-22 — First portal run surfaced a TestSprite plan/codegen issue: the
   generated capture assumed an `invoice_id` field, while the contract (this PRD
   + `docs/openapi.json`) defines `{"invoices":[{"id": ...}]}`, created as
-  `{"invoice": {"id": ...}}`. Fixed in the portal by refining the two affected
+  `{"invoice": {"id": ...}}`. Fixed in the portal by refining the affected
   test descriptions to capture `id` from the correct path (seeded ids remain
-  `inv-1001`/`inv-1002`); suite re-run green. API code untouched.
+  `inv-1001`/`inv-1002`). API code untouched.
+- 2026-10-22 — PR-check run surfaced a REAL finding: `SECURE_MODE` existed only
+  in the Vercel **production** environment, so preview deployments (which the
+  PR check tests) ran with the BOLA hole live and cross-owner reads returned
+  200. Fixed operationally: `SECURE_MODE=on` is now also attached to the
+  **preview** environment; subsequent runs assert ownership denial (`403`).
+  This is the catch → fix → green loop the check is meant to exercise. API
+  code remains untouched.
