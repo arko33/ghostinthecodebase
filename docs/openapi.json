@@ -1,0 +1,220 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "GhostInTheCodebase - Invoices Target API",
+    "description": "A small invoices API that is the live observation target of the GhostInTheCodebase demo. All routes require an 'x-user-id' header identifying a seeded user. Ownership is enforced on reads (BOLA/IDOR protection: cross-owner reads return 403, unknown ids 404). Seed data is deterministic: users 'alice' and 'bob'; invoice 'inv-1001' (owner alice, customer 'Acme Corp'); invoice 'inv-1002' (owner bob).",
+    "version": "1.0.0"
+  },
+  "servers": [
+    { "url": "https://ghostinthecodebase.vercel.app" },
+    { "url": "http://localhost:3000" }
+  ],
+  "paths": {
+    "/api/invoices": {
+      "description": "Invoice collection. Two-operation surface: owner-scoped list (GET) and create (POST).",
+      "get": {
+        "operationId": "listInvoices",
+        "summary": "List the caller's invoices",
+        "description": "Returns only invoices owned by the user identified by the x-user-id header. Never returns other users' invoices.",
+        "parameters": [
+          { "$ref": "#/components/parameters/XUserId" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Invoices owned by the caller.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["invoices"],
+                  "properties": {
+                    "invoices": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/Invoice" }
+                    }
+                  }
+                },
+                "example": {
+                  "invoices": [
+                    {
+                      "id": "inv-1001",
+                      "ownerId": "alice",
+                      "customer": "Acme Corp",
+                      "amount": 1200,
+                      "currency": "USD",
+                      "status": "sent",
+                      "createdAt": "2026-10-20T08:00:00.000Z"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      },
+      "post": {
+        "operationId": "createInvoice",
+        "summary": "Create an invoice",
+        "description": "Creates an invoice owned by the caller. Defaults: currency USD, status draft. Requires a customer string and a numeric amount.",
+        "parameters": [
+          { "$ref": "#/components/parameters/XUserId" }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/CreateInvoiceInput" }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Invoice created.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["invoice"],
+                  "properties": {
+                    "invoice": { "$ref": "#/components/schemas/Invoice" }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Body is not valid JSON.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" },
+                "example": { "error": "invalid_json" }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "422": {
+            "description": "Validation failed: customer is missing or amount is not a number.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" },
+                "example": { "error": "customer and numeric amount are required" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/invoices/{id}": {
+      "description": "Single-invoice read with ownership enforcement. Cross-owner access returns 403 and does not leak existence beyond 404 for unknown ids.",
+      "get": {
+        "operationId": "getInvoice",
+        "summary": "Read one invoice (owner-scoped)",
+        "parameters": [
+          { "$ref": "#/components/parameters/XUserId" },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" },
+            "example": "inv-1001"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Invoice returned when it exists and is owned by the caller.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["invoice"],
+                  "properties": {
+                    "invoice": { "$ref": "#/components/schemas/Invoice" }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": {
+            "description": "The invoice exists but is owned by another user (BOLA denied).",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" },
+                "example": { "error": "forbidden" }
+              }
+            }
+          },
+          "404": {
+            "description": "No invoice with that id exists.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" },
+                "example": { "error": "not_found" }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "parameters": {
+      "XUserId": {
+        "name": "x-user-id",
+        "in": "header",
+        "required": true,
+        "description": "Identity of the caller. Must be one of the seeded users: 'alice' or 'bob'. Missing or unknown users are rejected with 401.",
+        "schema": { "type": "string" },
+        "example": "alice"
+      }
+    },
+    "schemas": {
+      "Invoice": {
+        "type": "object",
+        "required": ["id", "ownerId", "customer", "amount", "currency", "status", "createdAt"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^inv-\\d{4}$", "example": "inv-1001" },
+          "ownerId": { "type": "string", "example": "alice" },
+          "customer": { "type": "string", "example": "Acme Corp" },
+          "amount": { "type": "number", "example": 1200 },
+          "currency": { "type": "string", "example": "USD" },
+          "status": { "type": "string", "enum": ["draft", "sent", "paid"], "example": "sent" },
+          "createdAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "CreateInvoiceInput": {
+        "type": "object",
+        "required": ["customer", "amount"],
+        "description": "customer is required and must be a non-empty string. amount is required and must be a number (negative amounts currently pass validation). currency is optional and defaults to USD.",
+        "properties": {
+          "customer": { "type": "string", "minLength": 1 },
+          "amount": { "type": "number" },
+          "currency": { "type": "string", "default": "USD" }
+        }
+      },
+      "Error": {
+        "type": "object",
+        "required": ["error"],
+        "properties": {
+          "error": {
+            "type": "string",
+            "description": "Machine-readable error code",
+            "example": "unauthorized"
+          }
+        }
+      }
+    },
+    "responses": {
+      "Unauthorized": {
+        "description": "Missing x-user-id header or unknown user.",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/Error" },
+            "example": { "error": "unauthorized" }
+          }
+        }
+      }
+    }
+  }
+}
