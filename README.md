@@ -99,21 +99,43 @@ ghostinthecodebase/
 ├─ app/
 │  ├─ page.tsx                # landing
 │  ├─ playground/page.tsx     # dashboard route
-│  └─ api/invoices/           # live target API (TestSprite pokes this)
+│  └─ api/
+│     ├─ invoices/            # live target API (TestSprite pokes this)
+│     ├─ health/              # runtime probe: cpu, rss, heap, uptime
+│     └─ autopsy/             # engine verdict for the demo session
 ├─ src/
 │  ├─ components/             # Dashboard, AIPanel, CodeDiff, MetricsChart, GhostCity
 │  ├─ components/site/        # SiteNav, SiteFooter
 │  ├─ data/fixture.ts         # recorded demo session
 │  ├─ store/invoices.ts       # in-memory store + SECURE_MODE gate (BOLA)
-│  ├─ collector/opencode.ts   # capture path (stub in this build)
-│  ├─ runner/metrics.ts       # runtime sampler (stub in this build)
-│  └─ autopsy/engine.ts       # anomaly detection + attribution (stub in this build)
+│  ├─ collector/opencode.ts   # OpenCode SSE adapter (stub)
+│  ├─ collector/shadow-git.ts # commits, diffs and rollback per turn
+│  ├─ runner/metrics.ts       # polls /api/health into MetricSample
+│  └─ autopsy/engine.ts       # threshold + trend + attribution
 ├─ public/                    # brand assets
+├─ docs/                      # OpenAPI spec + test PRD
 └─ PRD_CONCEPT.md             # full product PRD
 ```
 
-The dashboard is fully demoable from `src/data/fixture.ts`. The collector, runner
-and autopsy modules are the real-time capture path and are the next milestone.
+The dashboard replays `src/data/fixture.ts`. The capture path underneath it is
+real: the metrics runner polls `/api/health`, the shadow-git collector commits
+and diffs the worktree, and the autopsy engine turns the sample stream into a
+verdict.
+
+### The capture path
+
+Four moving parts, no agent SDK:
+
+| Module | Role |
+| --- | --- |
+| `app/api/health` | CPU from the delta of `process.cpuUsage()`, RSS, heap, uptime |
+| `src/runner/metrics.ts` | Polls the probe, tags each sample with the active turn, counts failed probes as errors |
+| `src/collector/shadow-git.ts` | `commitSnapshot`, `diffBetween`, `rollbackFile` — the substrate for diffs and one-click rollback |
+| `src/autopsy/engine.ts` | Hard thresholds, sliding-window slope, attribution to the last assistant turn |
+
+`GET /api/autopsy` runs the engine against the demo session, which keeps the
+detectors inspectable and doubles as a smoke test: the demo must always produce a
+leak of ~38 MB per sample, blamed on turn 4, healed by the end of the session.
 
 ---
 
@@ -175,7 +197,7 @@ holds the merge.
 | Landing, playground, 3D city | done |
 | Live target API + BOLA demo | done |
 | TestSprite suite + GitHub App | pending — authored in the 3.0 portal |
-| Shadow-git collector, metrics runner, autopsy engine | stubbed — next milestone |
+| Shadow-git collector, metrics runner, autopsy engine | done — see the capture path |
 | MCP read-only surface (`get_autopsy`) | planned |
 
 ---
