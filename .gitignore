@@ -16,6 +16,7 @@ next-env.d.ts
 # local work docs (stale handoff, not part of the repo)
 HANDOFF.md
 PRD_CONCEPT.md
+GHOST_PLAN.md
 
 # env & secrets
 .env
@@ -31,3 +32,5 @@ Thumbs.db
 .opencode/
 testsprite_tests/
 .vercel/
+testsprite_tests/tmp/
+testsprite_tests/tmp/config.json
