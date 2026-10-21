@@ -31,7 +31,23 @@ export function createProbes({ url, intervalMs = 4000, fetchImpl = globalThis.fe
     }
   }
 
+  // Back off when the target keeps failing (wrong URL, app down, no
+  // /api/health): keep the last sample slot moving but stop hammering the
+  // app — 5 straight failures slow the cadence 8x, 10 straight 30x.
+  let consecutiveFailures = 0;
+  function reschedule() {
+    if (state.timer) clearInterval(state.timer);
+    const slot = intervalMs * (consecutiveFailures >= 10 ? 30 : consecutiveFailures >= 5 ? 8 : 1);
+    state.timer = setInterval(() => void sample(), slot);
+    state.timer.unref?.();
+  }
+
   function push(ts, metrics, failed) {
+    if (failed) consecutiveFailures += 1; else consecutiveFailures = 0;
+    if (consecutiveFailures === 5 || consecutiveFailures === 10) {
+      // keep the slot bookkeeping correct while the cadence backs off
+      reschedule();
+    }
     state.out({ ts, metrics, probeFailed: failed });
   }
 

@@ -118,7 +118,11 @@ export function buildPlaygroundCity(
         turn: firstSeen.get(file.path) ?? 1,
         seed: hash(file.path),
       }))
-    : (KNOWN_FILES.map((path) => {
+    : isLive
+      // live recording without churn data (e.g. not a git repo): no towers —
+      // never fill the user's city with the demo's files.
+      ? []
+      : (KNOWN_FILES.map((path) => {
     const snap = snapshotFiles.get(path);
     const seed = hash(path);
     return {
