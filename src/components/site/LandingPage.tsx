@@ -976,12 +976,12 @@ export default function LandingPage() {
                   {
                     n: "02",
                     t: "Connect OpenCode (Mode A)",
-                    d: "Copy the one-file adapter into .opencode/plugins/ghost.ts - OpenCode then reports every turn boundary to the recorder, so the timeline uses real turn ids.",
+                    d: "Two commands (typed by the terminal on the right): create the plugin folder, copy the one-file adapter in. OpenCode then reports every turn boundary to the recorder, so the timeline uses real turn ids.",
                   },
                   {
                     n: "03",
                     t: "Record any session",
-                    d: "Run ghost watch in your project. With the plugin installed, turns stream live; with any other agent (Cursor, Claude Code, a human) the filesystem watcher + runtime probes record everything from the outside - turns marked estimated, never invented.",
+                    d: "Run ghost watch in your project, and run your app yourself (npm run dev etc.) - the recorder probes its /api/health. With the plugin, turns stream live; with any other agent (Cursor, Claude Code, a human) the filesystem watcher + runtime probes record everything from the outside - turns marked estimated, never invented.",
                   },
                   {
                     n: "04",
