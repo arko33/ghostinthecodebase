@@ -158,19 +158,28 @@ Seed data is deterministic: users `alice` and `bob`, invoice `inv-1001` owned by
 
 ## What the suite covers
 
-The suite is authored in the TestSprite 3.0 portal against the **deployed URL**
-(never localhost) and runs on every pull request through the GitHub App. The
-cases below are what it is designed to assert.
+13 backend tests in the TestSprite 3.0 project, built from
+[`docs/openapi.json`](docs/openapi.json) and executed against the **deployed URL**
+(never localhost) by the `TestSprite` workflow on every pull request. The job is a
+required check: a red suite blocks the merge.
 
-| Case | Request | Expected when secure |
-| --- | --- | --- |
-| Owner reads own invoice | `GET /api/invoices/inv-1001`, `x-user-id: alice` | `200` with `inv-1001` |
-| Cross-owner read (BOLA) | `GET /api/invoices/inv-1001`, `x-user-id: bob` | `403` |
-| List is owner-scoped | `GET /api/invoices`, `x-user-id: bob` | `200`, no `inv-1001` |
-| Unknown invoice | `GET /api/invoices/nope`, `x-user-id: alice` | `404` |
-| Create invoice | `POST /api/invoices`, valid body | `201` with the new id |
+| # | Case | Request | Asserts |
+| --- | --- | --- | --- |
+| 1 | Health probe | `GET /api/health` | `200`, `ok=true`, metrics in range |
+| 2 | Leak detected | `GET /api/autopsy` | one `leak` anomaly on `mem`, severity `high` |
+| 3 | Turn attribution | `GET /api/autopsy` | anomaly on `t5` blamed on `t4`, names `invoices.ts` |
+| 4 | Alice lists | `GET /api/invoices`, alice | only alice's, never `inv-1002` |
+| 5 | Bob lists | `GET /api/invoices`, bob | only bob's, never `inv-1001` |
+| 6 | List unauthenticated | `GET /api/invoices` | `401`, no data |
+| 7 | Owner reads own | `GET /api/invoices/inv-1001`, alice | `200`, seeded fields |
+| 8 | Cross-owner read (BOLA) | `GET /api/invoices/inv-1001`, bob | `403`, no payload |
+| 9 | Unknown id | `GET /api/invoices/inv-9999` | `404 not_found` |
+| 10 | Read unauthenticated | `GET /api/invoices/inv-1001` | `401` |
+| 11 | Create | `POST /api/invoices` | `201`, `USD` default, `draft` |
+| 12 | Create without customer | `POST /api/invoices` | `422` |
+| 13 | Create unauthenticated | `POST /api/invoices` | `401`, nothing created |
 
-With `SECURE_MODE=off`, the cross-owner case returns `200` and the suite goes red.
+Run the same suite locally with `npx @testsprite/testsprite-cli ci run --project aa7e92b6-93ed-43a2-8cdf-9d4889269c86 --env default`.
 That is the **catch** half of the demo; flipping the gate to `on` is the **green**
 half. No verdict is ever fabricated in this repository — the suite is authored in
 the portal against the deployed URL and executed by the GitHub App.
