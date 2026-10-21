@@ -41,3 +41,6 @@ testsprite_tests/tmp/config.json
 
 .vercel
 .env*
+
+# ghost recorder state (sessions, shadow index, patches)
+.ghost/

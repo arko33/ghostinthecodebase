@@ -25,7 +25,10 @@ export function commitSnapshot(repo, message = "ghost checkpoint") {
     execFileSync("git", args, { cwd: repo, env: { ...env, ...extraEnv }, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim();
 
   try { git(["read-tree", "HEAD"]); } catch { /* empty repo without HEAD */ }
-  git(["add", "-A"]);
+  // .ghost is the recorder's own bookkeeping (shadow index + patches). Staging
+  // it would grow every snapshot by megabytes and eventually blow maxBuffer —
+  // the city would silently stop growing. Exclude it at the source.
+  git(["add", "-A", "--", ".", ":(exclude).ghost", ":(exclude).ghost/**"]);
   const tree = git(["write-tree"]);
   let parent = null;
   try { parent = git(["rev-parse", "HEAD"]); } catch { /* first snapshot */ }
@@ -33,14 +36,14 @@ export function commitSnapshot(repo, message = "ghost checkpoint") {
   const sha = git(commitArgs, { GIT_AUTHOR_DATE: new Date().toISOString(), GIT_COMMITTER_DATE: new Date().toISOString() });
   const diffOut = execFileSync(
     "git", ["diff", "--binary", ...(parent ? [parent] : ["4b825dc642cb6eb9a060e54bf8d69288fbee4904"]), sha],
-    { cwd: repo, encoding: "utf8", maxBuffer: 1024 * 1024 * 16 },
+    { cwd: repo, encoding: "utf8", maxBuffer: 1024 * 1024 * 64 },
   ).trim();
   return { sha, diff: diffOut, changedFiles: listChangedFiles(repo, parent ? parent : "4b825dc642cb6eb9a060e54bf8d69288fbee4904", sha) };
 }
 
 function listChangedFiles(repo, from, to) {
   try {
-    const out = execFileSync("git", ["diff", "--name-only", from, to], { cwd: repo, encoding: "utf8" }).trim();
+    const out = execFileSync("git", ["diff", "--name-only", from, to, "--", ".", ":(exclude).ghost", ":(exclude).ghost/**"], { cwd: repo, encoding: "utf8" }).trim();
     return out ? out.split("\n").map((s) => s.trim()).filter(Boolean) : [];
   } catch { return []; }
 }
