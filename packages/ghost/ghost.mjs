@@ -206,14 +206,14 @@ function cityHtml3d() {
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>Ghost City — live playground (3D)</title>
 <style>
-  :root{--bg:#070d0b;--fg:#e8f0ee;--dim:#8ba39d;--line:rgba(255,255,255,.09);--hot:#ff7a6b;--cold:#5eead4;--card:rgba(255,255,255,.04)}
+  :root{--bg:#05060a;--fg:#e6e9f5;--dim:#9aa3b8;--line:rgba(139,124,255,.14);--hot:#ff7a6b;--cold:#67e8f9;--violet:#8b7cff;--card:rgba(139,124,255,.06)}
   *{box-sizing:border-box}html,body{height:100%}
-  body{margin:0;background:var(--bg);color:var(--fg);font:13px/1.55 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;overflow:hidden;display:flex;flex-direction:column}
+  body{margin:0;background:var(--bg);color:var(--fg);font:13px/1.55 Inter,ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;overflow:hidden;display:flex;flex-direction:column}
   a{color:var(--cold);text-decoration:none}a:hover{text-decoration:underline}
-  header{display:flex;align-items:center;gap:12px;padding:10px 16px;border-bottom:1px solid var(--line);flex:none}
-  .dot{width:8px;height:8px;border-radius:50%;background:var(--cold);box-shadow:0 0 8px var(--cold);animation:pulse 2s infinite}
+  header{display:flex;align-items:center;gap:12px;padding:10px 16px;border-bottom:1px solid var(--line);flex:none;backdrop-filter:blur(6px)}
+  .dot{width:8px;height:8px;border-radius:50%;background:var(--cold);box-shadow:0 0 10px var(--cold);animation:pulse 2s infinite}
   @keyframes pulse{50%{opacity:.35}}
-  header h1{font-size:14px;margin:0;letter-spacing:.03em}
+  header h1{font-size:14px;margin:0;letter-spacing:.05em;color:#cbd5ff}
   .meta{color:var(--dim);font-size:11px}
   .spacer{flex:1}
   .layout{flex:1;display:grid;grid-template-columns:270px 1fr 320px;min-height:0}
@@ -324,16 +324,19 @@ async function initThree(){
   const cv=$("gl");
   renderer=new THREE.WebGLRenderer({canvas:cv,antialias:true});
   renderer.setPixelRatio(devicePixelRatio);
-  scene=new THREE.Scene();scene.background=new THREE.Color(0x070d0b);
-  scene.fog=new THREE.Fog(0x070d0b,26,80);
+  scene=new THREE.Scene();scene.background=new THREE.Color(0x05060a);
+  scene.fog=new THREE.Fog(0x05060a,30,95);
   camera=new THREE.PerspectiveCamera(46,1,0.1,300);
   camera.position.set(14,13,16);
   controls=new OrbitControls(camera,cv);
-  controls.enableDamping=true;controls.autoRotate=true;controls.autoRotateSpeed=0.55;
+  controls.enableDamping=true;controls.autoRotate=true;controls.autoRotateSpeed=0.5;
   controls.maxPolarAngle=Math.PI/2.06;controls.minDistance=7;controls.maxDistance=64;
-  scene.add(new THREE.HemisphereLight(0xbfe8dd,0x0a1512,1.05));
-  const dir=new THREE.DirectionalLight(0xffffff,0.85);dir.position.set(12,20,8);scene.add(dir);
-  const grid=new THREE.GridHelper(60,60,0x1b3b34,0x12251f);if(grid)scene.add(grid);
+  scene.add(new THREE.HemisphereLight(0xcdd2ff,0x05060a,1.0));
+  const dir=new THREE.DirectionalLight(0xbfb8ff,0.9);dir.position.set(12,20,8);scene.add(dir);
+  const cyan=new THREE.PointLight(0x67e8f9,0.5,40);cyan.position.set(-10,6,-10);scene.add(cyan);
+  const ground=new THREE.Mesh(new THREE.PlaneGeometry(160,160),new THREE.MeshStandardMaterial({color:0x070811,roughness:0.9,metalness:0.1}));
+  ground.rotation.x=-Math.PI/2;ground.position.y=-0.02;scene.add(ground);
+  const grid=new THREE.GridHelper(90,60,0x3d2f7a,0x1c1a3a);if(grid){grid.position.y=0.001;scene.add(grid);}
   meshGroup=new THREE.Group();scene.add(meshGroup);
   raycaster=new THREE.Raycaster();
   threeReady=true;resize();
@@ -353,22 +356,36 @@ function rebuildMeshes(){
     const x=(i%cols-(cols-1)/2)*2.1,z=(Math.floor(i/cols)-(cols-1)/2)*2.1;
     const h=heightOf(t);
     const hot=t.git&&t.loc>0;
-    const hue=hot?168-Math.min(t.loc,86)/86*62:200;
-    const l=hue>140?0.34+Math.min(h,14)/14*0.2:0.42;
-    const geo=new THREE.BoxGeometry(1.22,h,1.22);
-    const mat=new THREE.MeshStandardMaterial({color:new THREE.Color().setHSL(hue/360,PRIORITY_LIGHT>0?0.52:0.1,Math.max(0.3,Math.min(0.72,0.38+h*0.02))),roughness:0.55,metalness:0.08});
+    // match the dashboard palette: violet base, cyan edge-lines, red = anomaly
+    let baseHue=252,baseLight=hot?0.62-h*0.012:0.5+0.02*0;
+    const geo=new THREE.BoxGeometry(1,h,1);
+    const mat=new THREE.MeshStandardMaterial({
+      color:new THREE.Color().setHSL((baseHue-(hot?26:0))/360, hot?0.58:0.34, Math.max(0.3,Math.min(0.72,baseLight-h*0.014))),
+      roughness:0.42,metalness:0.22,
+      emissive:new THREE.Color().setHSL((baseHue-(hot?38:6))/360,0.65,hot?0.16:0.07),
+    });
     const m=new THREE.Mesh(geo,mat);
     m.position.set(x,h/2+0.02,z);
     m.userData=t;
-    const edges=new THREE.LineSegments(new THREE.EdgesGeometry(geo),new THREE.LineBasicMaterial({color:0x0b1f1a,transparent:true,opacity:0.5}));
+    const edges=new THREE.LineSegments(new THREE.EdgesGeometry(geo),new THREE.LineBasicMaterial({color:0x67e8f9,transparent:true,opacity:hot?0.55:0.3}));
     m.add(edges);
+    if(hot&&t.loc>=1){
+      const aura=new THREE.Sprite(new THREE.SpriteMaterial({map:auraTexture,color:0xff7a6b,transparent:true,opacity:0.5,depthWrite:false}));
+      aura.scale.set(3.2,3.2,1);aura.position.set(0,h*0.5,0);m.add(aura);
+    }
     t._mesh=m;
     meshGroup.add(m);
   });
 }
+let _auraTex=null;
+function auraTexture(){if(_auraTex)return _auraTex;
+  const c=document.createElement("canvas");c.width=c.height=128;const g=c.getContext("2d");
+  const grd=g.createRadialGradient(64,64,2,64,64,62);
+  grd.addColorStop(0,"rgba(255,122,107,.9)");grd.addColorStop(0.5,"rgba(255,122,107,.28)");grd.addColorStop(1,"rgba(255,122,107,0)");
+  g.fillStyle=grd;g.fillRect(0,0,128,128);_auraTex=new THREE.CanvasTexture(c);return _auraTex;}
 
 function animate(){requestAnimationFrame(animate);if(controls)controls.update();
-  if(controls&&controls.autoRotate&&Date.now()%1===0){}
+  if(threeReady&&controls){controls.target.y=1.2;}
   if(renderer&&scene&&camera)renderer.render(scene,camera);}
 
 function resize(){const cv=$("gl"),box=cv.parentElement;renderer.setSize(box.clientWidth,box.clientHeight);camera.aspect=box.clientWidth/box.clientHeight;camera.updateProjectionMatrix();}
@@ -381,7 +398,7 @@ function pickMesh(e){if(!threeReady)return null;const r=$("gl").getBoundingClien
 function onMove(e){const tip=$("tip");const m=pickMesh(e);
   if(hoverMesh&&hoverMesh!==selMesh)hoverMesh.material.emissive&&hoverMesh.material.emissive.setHex(0x000000);
   hoverMesh=m;
-  if(m){m.material.emissive&&m.material.emissive.setHex(0x0e3e33);
+  if(m){m.material.emissive&&m.material.emissive.setHex(0x3b2f8e);
     const t=m.userData;tip.style.display="block";tip.style.left=e.clientX+14+"px";tip.style.top=e.clientY+10+"px";
     tip.innerHTML="<b>"+esc(t.path)+"</b><br/>"+(t.git?("churn "+t.loc+" lines"):("touched (non-git — no patch)"))+" · turn t"+t.turn+(t.sha?' · <a href="/diff/'+t.sha+'" target="_blank">patch</a>':"");}
   else tip.style.display="none";}
@@ -391,7 +408,7 @@ function onClick(e){const m=pickMesh(e);if(m)selectTower(m.userData.path);}
 function selectTower(path){const t=byId.get(path);if(!t)return;selected=t;
   if(selMesh)selMesh.material.emissive&&selMesh.material.emissive.setHex(0x000000);
   selMesh=t._mesh||null;
-  if(selMesh)selMesh.material.emissive&&selMesh.material.emissive.setHex(0x0a5a48);
+  if(selMesh)selMesh.material.emissive&&selMesh.material.emissive.setHex(0x8b7cff);
   $("sel").className="stat";
   $("sel").innerHTML="<b class='big'>"+esc(t.path)+"</b><div class='kv'>"+
     "<i>churn</i><span>"+(t.git?t.loc+" lines":"no patch (non-git)")+"</span>"+
