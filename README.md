@@ -422,6 +422,21 @@ ghost sessions   # list sessions stored in .ghost
 ghost setup      # optional: pair the device with Ghost Cloud (metadata-only sync; source code never leaves the machine)
 ```
 
+**Using OpenCode?** (Mode A — real turn ids, richest context) copy the one-file
+adapter into your project, then start `ghost watch` and use OpenCode as usual:
+
+```bash
+mkdir -p .opencode/plugins
+curl -o .opencode/plugins/ghost.ts \
+  https://raw.githubusercontent.com/arko33/ghostinthecodebase/main/packages/opencode-plugin/index.ts
+```
+
+The adapter reports `turn.started` (the prompt admission — the authoritative
+turn boundary) and `turn.completed` to the local recorder on
+`127.0.0.1:5417/events`. No plugin? Recording still works — the filesystem
+watcher + runtime probes capture everything from the outside and turns are
+marked **estimated, never invented**.
+
 ## 🛠️ Stack
 
 <details>
