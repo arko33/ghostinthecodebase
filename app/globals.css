@@ -42,7 +42,8 @@
     rgba(103, 232, 249, 0.45)
   );
 
-  --font-display-stack: var(--font-display), "Times New Roman", serif;
+  --font-display-stack: var(--font-sans), ui-sans-serif, system-ui,
+    -apple-system, "Segoe UI", sans-serif;
   --font-sans-stack: var(--font-sans), ui-sans-serif, system-ui, -apple-system,
     "Segoe UI", sans-serif;
   --font-mono-stack: var(--font-mono), ui-monospace, SFMono-Regular, Menlo,
@@ -494,21 +495,21 @@ a {
   background:
     radial-gradient(
       98% 46% at 50% 56%,
-      rgba(139, 124, 255, 0.22) 0%,
-      rgba(103, 232, 249, 0.05) 42%,
+      rgba(64, 158, 128, 0.2) 0%,
+      rgba(28, 82, 68, 0.06) 42%,
       transparent 72%
     ),
     radial-gradient(
       120% 80% at 50% 0%,
-      rgba(139, 124, 255, 0.12) 0%,
+      rgba(58, 140, 112, 0.1) 0%,
       transparent 55%
     ),
     radial-gradient(
       100% 70% at 80% 70%,
-      rgba(103, 232, 249, 0.08) 0%,
+      rgba(110, 210, 175, 0.06) 0%,
       transparent 60%
     ),
-    linear-gradient(180deg, #06070d 0%, #05060a 60%, #04050a 100%);
+    linear-gradient(180deg, #050807 0%, #040706 60%, #030605 100%);
 }
 
 .scene-layer::before {
@@ -520,8 +521,8 @@ a {
   opacity: 0.55;
   background-image:
     radial-gradient(1px 1px at 24px 32px, rgba(237, 239, 245, 0.85), transparent 60%),
-    radial-gradient(1px 1px at 112px 84px, rgba(182, 168, 255, 0.7), transparent 60%),
-    radial-gradient(1.4px 1.4px at 186px 42px, rgba(103, 232, 249, 0.7), transparent 60%),
+    radial-gradient(1px 1px at 112px 84px, rgba(170, 235, 208, 0.65), transparent 60%),
+    radial-gradient(1.4px 1.4px at 186px 42px, rgba(143, 230, 194, 0.6), transparent 60%),
     radial-gradient(1px 1px at 68px 148px, rgba(237, 239, 245, 0.55), transparent 60%),
     radial-gradient(1px 1px at 212px 164px, rgba(237, 239, 245, 0.5), transparent 60%);
   background-size: 236px 196px;
@@ -542,8 +543,8 @@ a {
   position: absolute;
   inset: 44% -20% -20%;
   background-image:
-    linear-gradient(rgba(139, 124, 255, 0.16) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(139, 124, 255, 0.11) 1px, transparent 1px);
+    linear-gradient(rgba(72, 160, 130, 0.15) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(72, 160, 130, 0.1) 1px, transparent 1px);
   background-size: 64px 64px, 64px 64px;
   transform: perspective(520px) rotateX(66deg);
   transform-origin: 50% 0;
@@ -572,10 +573,10 @@ a {
   border-radius: 1px 1px 0 0;
   background: linear-gradient(
     180deg,
-    rgba(139, 124, 255, 0.52),
-    rgba(17, 20, 29, 0.08) 88%
+    rgba(72, 170, 136, 0.5),
+    rgba(12, 22, 18, 0.08) 88%
   );
-  box-shadow: 0 0 24px rgba(139, 124, 255, 0.14);
+  box-shadow: 0 0 24px rgba(72, 170, 136, 0.14);
 }
 
 .scene-poster__glow {
@@ -590,8 +591,8 @@ a {
   border-radius: 50%;
   background: radial-gradient(
     circle,
-    rgba(139, 124, 255, 0.22) 0%,
-    rgba(103, 232, 249, 0.06) 42%,
+    rgba(72, 170, 136, 0.2) 0%,
+    rgba(143, 230, 194, 0.06) 42%,
     transparent 68%
   );
   filter: blur(20px);
@@ -1079,10 +1080,10 @@ a {
 .hero__title {
   max-width: 1050px;
   font-family: var(--font-display-stack);
-  font-size: clamp(3.35rem, 8.7vw, 7.6rem);
-  font-weight: 400;
-  line-height: 1.03;
-  letter-spacing: -0.018em;
+  font-size: clamp(3.1rem, 8.2vw, 7.1rem);
+  font-weight: 500;
+  line-height: 0.99;
+  letter-spacing: -0.038em;
   color: var(--fg);
 }
 
@@ -1107,13 +1108,16 @@ a {
   color: var(--fg);
 }
 
+.hero__title em {
+  font-style: normal;
+  color: var(--emerald);
+  padding-right: 0.04em;
+}
+
 .hero__line--accent em {
-  font-style: italic;
-  background: var(--ghost-gradient);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-  padding-right: 0.06em;
+  font-style: normal;
+  color: var(--emerald);
+  padding-right: 0.04em;
 }
 
 .hero__bottom {
@@ -1268,14 +1272,15 @@ a {
   max-width: 760px;
   margin-top: 18px;
   font-family: var(--font-display-stack);
-  font-size: clamp(2.5rem, 5.1vw, 4.5rem);
-  line-height: 1.04;
-  letter-spacing: -0.018em;
+  font-size: clamp(2.4rem, 4.9vw, 4.2rem);
+  font-weight: 500;
+  line-height: 1.02;
+  letter-spacing: -0.032em;
 }
 
 .section-head__title em {
-  font-style: italic;
-  color: var(--violet-soft);
+  font-style: normal;
+  color: var(--emerald);
 }
 
 .section-head > div:last-child {

@@ -34,3 +34,6 @@ testsprite_tests/
 .vercel/
 testsprite_tests/tmp/
 testsprite_tests/tmp/config.json
+
+.vercel
+.env*

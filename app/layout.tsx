@@ -1,19 +1,7 @@
 import type { Metadata, Viewport } from "next";
-import {
-  Instrument_Serif,
-  Inter_Tight,
-  JetBrains_Mono,
-} from "next/font/google";
+import { Inter_Tight, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import "./styles/landing.css";
-
-const display = Instrument_Serif({
-  subsets: ["latin"],
-  weight: "400",
-  style: ["normal", "italic"],
-  variable: "--font-display",
-  display: "swap",
-});
 
 const sans = Inter_Tight({
   subsets: ["latin"],
@@ -75,7 +63,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#05060A",
+  themeColor: "#040A08",
   colorScheme: "dark",
   width: "device-width",
   initialScale: 1,
@@ -89,7 +77,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${display.variable} ${sans.variable} ${mono.variable}`}
+      className={`${sans.variable} ${mono.variable}`}
     >
       <body>
         <a className="skip-link" href="#main">
