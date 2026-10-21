@@ -87,8 +87,9 @@ Routes:
 - `/playground` — the dashboard (timeline, diff, metrics, 3D city)
 - `/api/invoices` — the live target API that the test suite exercises
 
-Deploy on Vercel with `framework: Next.js` and no extra configuration. Set
-`SECURE_MODE` in the project environment to control the demo vulnerability.
+Deploy on Vercel with `framework: Next.js` and no extra configuration. No
+environment variables are required: ownership is enforced in code, not behind a
+flag.
 
 ---
 
@@ -107,7 +108,7 @@ ghostinthecodebase/
 │  ├─ components/             # Dashboard, AIPanel, CodeDiff, MetricsChart, GhostCity
 │  ├─ components/site/        # SiteNav, SiteFooter
 │  ├─ data/fixture.ts         # recorded demo session
-│  ├─ store/invoices.ts       # in-memory store + SECURE_MODE gate (BOLA)
+│  ├─ store/invoices.ts       # in-memory store, ownership-scoped reads
 │  ├─ collector/opencode.ts   # OpenCode SSE adapter (stub)
 │  ├─ collector/shadow-git.ts # commits, diffs and rollback per turn
 │  ├─ runner/metrics.ts       # polls /api/health into MetricSample
