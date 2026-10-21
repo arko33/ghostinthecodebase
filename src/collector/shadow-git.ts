@@ -6,6 +6,8 @@
 // checked out (a local recorder). It is not used by the deployed dashboard.
 
 import { execFileSync } from "node:child_process";
+import os from "node:os";
+import path from "node:path";
 import type { DiffHunk } from "@/src/types";
 
 export interface ShadowCommit {
@@ -78,4 +80,79 @@ export function rollbackFile(repoPath: string, hash: string, file: string): void
 /** Restore the whole worktree to `hash`. */
 export function rollbackAll(repoPath: string, hash: string): void {
   git(repoPath, ["checkout", hash, "--", "."]);
+}
+
+/** Files with uncommitted changes, including untracked ones. */
+export function workingTreeChanges(repoPath: string): string[] {
+  const out = git(repoPath, ["status", "--porcelain"]);
+  return out
+    .split("\n")
+    .map((l) => l.trim())
+    .filter(Boolean)
+    .map((l) => l.slice(2).trim())
+    .filter(Boolean);
+}
+
+/**
+ * Stage the whole working tree into a throwaway index and return its tree hash.
+ * Nothing about HEAD, the branch or the user's own index is touched.
+ */
+export function shadowTree(repoPath: string): string {
+  const run = ghostGit(repoPath);
+  run(["add", "-A"]);
+  return run(["write-tree"]).trim();
+}
+
+/** Write a commit for an already-staged tree, without moving any ref. */
+export function commitShadowTree(
+  repoPath: string,
+  tree: string,
+  parent: string | null,
+  message: string,
+): ShadowCommit {
+  const args = ["commit-tree", tree, "-m", message];
+  if (parent) args.push("-p", parent);
+  const hash = ghostGit(repoPath)(args).trim();
+  return { hash, message, at: new Date().toISOString() };
+}
+
+/** Tree hash of an existing commit. */
+export function treeOf(repoPath: string, commit: string): string {
+  return git(repoPath, ["rev-parse", `${commit}^{tree}`]).trim();
+}
+
+/**
+ * Stage + commit the working tree as a throwaway commit. Returns the commit.
+ * Kept for callers that do not need to compare trees first.
+ */
+export function shadowSnapshot(
+  repoPath: string,
+  parent: string | null,
+  message: string,
+): ShadowCommit {
+  return commitShadowTree(repoPath, shadowTree(repoPath), parent, message);
+}
+
+function ghostGit(repoPath: string) {
+  const gitDir = execFileSync("git", ["rev-parse", "--absolute-git-dir"], {
+    cwd: repoPath,
+    encoding: "utf8",
+  }).trim();
+
+  const env = {
+    ...process.env,
+    GIT_INDEX_FILE: path.join(os.tmpdir(), `ghost-index-${path.basename(gitDir)}`),
+    GIT_AUTHOR_NAME: "Ghost Recorder",
+    GIT_AUTHOR_EMAIL: "ghost@localhost",
+    GIT_COMMITTER_NAME: "Ghost Recorder",
+    GIT_COMMITTER_EMAIL: "ghost@localhost",
+  };
+
+  return (args: string[]) =>
+    execFileSync("git", args, {
+      cwd: repoPath,
+      env,
+      encoding: "utf8",
+      maxBuffer: 16 * 1024 * 1024,
+    });
 }

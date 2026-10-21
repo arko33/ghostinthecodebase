@@ -93,6 +93,27 @@ flag.
 
 ---
 
+## Record your own session
+
+The deployed dashboard replays a recorded session. Recording runs where your code
+runs, because it shells out to git and polls your process:
+
+```bash
+npm run dev                                   # terminal 1
+npm run record -- --repo . \
+  --health http://localhost:3000/api/health \
+  --duration 60                               # terminal 2
+```
+
+It writes `session.json`. Open `/playground`, click **load session**, and pick the
+file. The timeline, the diff, the 3D city and the autopsy are then built from your
+own repository instead of the demo fixture.
+
+How it stays factual: every change burst is staged into a throwaway git index and
+written as a commit object **without moving `HEAD` or touching your branch**, so
+the diff is what actually landed on disk. Metrics come from the app's
+`/api/health`, not from what the agent says it did.
+
 ## Architecture
 
 ```
@@ -204,6 +225,7 @@ it runs the suite with the official CLI on every pull request and holds the merg
 | Live target API + BOLA demo | done, `bob` gets 403 after #2 |
 | TestSprite suite (13 cases) | done, green on every PR |
 | Shadow-git collector, metrics runner, autopsy engine | done |
+| Local recorder (`npm run record`) + load session in the playground | done |
 | MCP read-only surface (`get_autopsy`) | planned |
 
 ## Credits

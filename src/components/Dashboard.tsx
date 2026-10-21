@@ -16,6 +16,7 @@ import {
   SkipForward,
   Timer,
   TriangleAlert,
+  Upload,
   User,
 } from "lucide-react";
 import type { Session } from "@/src/types";
@@ -29,13 +30,27 @@ function clock(iso: string) {
   return iso.slice(11, 16);
 }
 
-export default function Dashboard({ session }: { session: Session }) {
+export default function Dashboard({
+  session,
+  onLoadSession,
+}: {
+  session: Session;
+  onLoadSession?: (file: File) => void;
+}) {
   const [activeTurn, setActiveTurn] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [pinned, setPinned] = useState<string | null>(null);
 
+  // A freshly loaded session starts at its first turn, not at whatever index the
+  // previous session was scrubbed to.
+  useEffect(() => {
+    setActiveTurn(0);
+    setPinned(null);
+    setPlaying(false);
+  }, [session.id]);
+
   const total = session.turns.length;
-  const turn = session.turns[activeTurn];
+  const turn = session.turns[activeTurn] ?? session.turns[0];
 
   const selectTurn = useCallback((index: number) => {
     setActiveTurn(index);
@@ -164,6 +179,23 @@ export default function Dashboard({ session }: { session: Session }) {
                 </>
               )}
             </span>
+
+            {onLoadSession && (
+              <label className="chip cursor-pointer border-line bg-elev text-dim transition hover:border-accent/40 hover:text-accent">
+                <Upload className="h-2.5 w-2.5" />
+                load session
+                <input
+                  type="file"
+                  accept="application/json,.json"
+                  className="sr-only"
+                  onChange={(event) => {
+                    const file = event.target.files?.[0];
+                    if (file) onLoadSession(file);
+                    event.currentTarget.value = "";
+                  }}
+                />
+              </label>
+            )}
           </div>
         </div>
       </header>

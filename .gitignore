@@ -30,5 +30,7 @@ yarn-error.log*
 
 # recorded sessions (repo root only — src/data is source)
 /data/
+/session.json
+/session-*.json
 
 .vercel

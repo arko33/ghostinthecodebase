@@ -298,6 +298,14 @@ export default function Home() {
                   Seven turns, one unbounded cache, one heal. Scrub the timeline,
                   read the diff, rotate the city, and copy the fix prompt.
                 </p>
+                <p className="mt-2 max-w-lg text-[11.5px] leading-relaxed text-dim">
+                  Or record your own:{" "}
+                  <code className="rounded border border-line bg-elev px-1.5 py-0.5 font-mono text-[11px] text-accent">
+                    npm run record
+                  </code>{" "}
+                  writes a <code className="font-mono text-[11px]">session.json</code>{" "}
+                  — drop it into the playground and the timeline is yours.
+                </p>
               </div>
               <Link
                 href="/playground"
