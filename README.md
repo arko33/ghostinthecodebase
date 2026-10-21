@@ -433,9 +433,14 @@ curl -o .opencode/plugins/ghost.ts \
 
 The adapter reports `turn.started` (the prompt admission — the authoritative
 turn boundary) and `turn.completed` to the local recorder on
-`127.0.0.1:5417/events`. No plugin? Recording still works — the filesystem
-watcher + runtime probes capture everything from the outside and turns are
-marked **estimated, never invented**.
+`127.0.0.1:5417/events`. Note: `ghost watch` **recording** — it does not start
+your app. Run your project as usual (e.g. `npm run dev`) in another terminal so
+the runtime probes have something to measure.
+
+No plugin? Recording still works — the filesystem watcher + runtime probes
+capture everything from the outside and turns are marked **estimated, never
+invented**. Not a git repository? File recording still works; run `git init`
+to unlock shadow-git checkpoints.
 
 ## 🛠️ Stack
 

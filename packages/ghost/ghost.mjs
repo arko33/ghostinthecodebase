@@ -175,6 +175,7 @@ async function cmdWatch() {
   console.log(`\n  ● Ghost recorder is live`);
   console.log(`    session  ${session.id}`);
   console.log(`    repo     ${repo}`);
+  if (!session.head) console.log(`    git      none — file recording only (run git init to enable shadow-git checkpoints)`);
   console.log(`    app      ${appUrl}`);
   console.log(`    adapter  ${eventsBase}/events (OpenCode plugin target)`);
   console.log(`    sync     ${sync}${sync === "off" ? "  (local-only) — run: ghost setup to enable" : ""}`);
@@ -210,6 +211,7 @@ function cmdStatus() {
   const head = shadow.currentHead(ROOT);
   console.log(`repo      ${ROOT}`);
   console.log(`head      ${head ? head.slice(0, 10) : "(no git)"}`);
+  if (!head) console.log(`          (not a git repo — run git init to enable shadow-git checkpoints)`);
   console.log(`cloud     ${config.cloudUrl}${creds ? " (paired)" : " (NOT paired)"}`);
   console.log(`sync      ${creds ? config.sync : "off (local-only)"}`);
   console.log(`settings  .ghost/config.json — secrets handled per README policy`);

@@ -22,7 +22,7 @@ export function commitSnapshot(repo, message = "ghost checkpoint") {
   const env = { ...process.env, GIT_INDEX_FILE: idx };
 
   const git = (args, extraEnv = {}) =>
-    execFileSync("git", args, { cwd: repo, env: { ...env, ...extraEnv }, encoding: "utf8" }).trim();
+    execFileSync("git", args, { cwd: repo, env: { ...env, ...extraEnv }, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim();
 
   try { git(["read-tree", "HEAD"]); } catch { /* empty repo without HEAD */ }
   git(["add", "-A"]);
@@ -56,6 +56,6 @@ export function showFile(repo, sha, filePath) {
 }
 
 export function currentHead(repo) {
-  try { return execFileSync("git", ["rev-parse", "HEAD"], { cwd: repo, encoding: "utf8" }).trim(); }
+  try { return execFileSync("git", ["rev-parse", "HEAD"], { cwd: repo, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim(); }
   catch { return null; }
 }
