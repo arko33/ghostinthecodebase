@@ -81,10 +81,44 @@ export function buildPlaygroundCity(
   });
 
   const snapshotFiles = new Map(snapshot.files.map((file) => [file.path, file]));
-  const blamedTurn = activeTurn >= 3 && activeTurn < 6;
-  const healed = activeTurn >= 5;
+  const spacing = 3.05;
+  const cols = 10;
+  const rows = 8;
 
-  const files = KNOWN_FILES.map((path) => {
+  // Demo fixture keeps its curated layout. Live recordings build the city from
+  // the files the recording actually touched — deterministically placed per
+  // path hash so the skyline is stable between live refreshes.
+  const isLive = session.agent.startsWith("ghost-live");
+  const blamedTurnId = session.autopsies[0]?.blamedTurnId ?? session.anomalies[0]?.turnId ?? null;
+  const blamedTurn = session.turns.find((turn) => turn.id === blamedTurnId) ?? null;
+  const hotFiles = new Set(blamedTurn?.changedFiles ?? []);
+  const healed =
+    !isLive && activeTurn < 5 ? false : isLive ? !!session.autopsies[0]?.healed : true;
+
+  const realFiles = isLive
+    ? [...snapshotFiles.values()].filter((file) => file.path)
+    : [];
+
+  const determinist = (path: string): [number, number] => {
+    const col = Math.floor(hash(path) * cols);
+    const row = Math.floor(hash(`${path}·z`) * rows);
+    return [
+      (col - (cols - 1) / 2) * spacing,
+      (row - (rows - 1) / 2) * spacing,
+    ];
+  };
+
+  const files: Array<{ path: string; label: string; loc: number; owner: "ai" | "human"; unreviewed: boolean; turn: number; seed: number }> = realFiles.length
+    ? realFiles.map((file) => ({
+        path: file.path,
+        label: file.path,
+        loc: file.loc,
+        owner: file.owner,
+        unreviewed: !!file.unreviewed,
+        turn: firstSeen.get(file.path) ?? 1,
+        seed: hash(file.path),
+      }))
+    : (KNOWN_FILES.map((path) => {
     const snap = snapshotFiles.get(path);
     const seed = hash(path);
     return {
@@ -104,7 +138,7 @@ export function buildPlaygroundCity(
     unreviewed: boolean;
     turn: number;
     seed: number;
-  }>;
+  }>);
 
   const forced: Record<string, [number, number]> = {
     "src/store/invoices.ts": [2.2, 0.4],
@@ -122,9 +156,6 @@ export function buildPlaygroundCity(
 
   const towers: PlaygroundTower[] = [];
   const occupied: Array<[number, number]> = [];
-  const spacing = 3.05;
-  const cols = 10;
-  const rows = 8;
 
   const place = (
     path: string | null,
@@ -139,6 +170,7 @@ export function buildPlaygroundCity(
     flag = 0,
   ) => {
     const height = Math.max(1.6, Math.min(12, loc / 7 + 2.2));
+    const hot = path !== null && hotFiles.has(path);
     towers.push({
       path,
       label,
@@ -146,14 +178,17 @@ export function buildPlaygroundCity(
       owner,
       unreviewed,
       turn,
-      health:
-        path === "src/store/invoices.ts"
+      health: hot
+        ? isLive
           ? healed
             ? 0.95
-            : blamedTurn
-              ? 0.06
-              : 0.86
-          : 0.62 + seed * 0.38,
+            : 0.06
+          : activeTurn >= 3 && activeTurn < 6
+            ? healed
+              ? 0.95
+              : 0.06
+            : 0.86
+        : 0.62 + seed * 0.38,
       flag,
       seed,
       x,
@@ -168,8 +203,10 @@ export function buildPlaygroundCity(
     const spot = forced[file.path];
     let x: number;
     let z: number;
-    if (spot) {
+    if (spot && !isLive) {
       [x, z] = spot;
+    } else if (isLive) {
+      [x, z] = determinist(file.path);
     } else {
       let guard = 0;
       do {
@@ -187,7 +224,7 @@ export function buildPlaygroundCity(
     }
     occupied.push([x, z]);
     const flag =
-      file.path === "src/store/invoices.ts" && blamedTurn && !healed ? 1 : 0;
+      hotFiles.has(file.path) && !healed && (!isLive || !!blamedTurn) ? 1 : 0;
     place(
       file.path,
       file.path,

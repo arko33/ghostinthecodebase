@@ -422,6 +422,18 @@ ghost sessions   # list sessions stored in .ghost
 ghost setup      # optional: pair the device with Ghost Cloud (metadata-only sync; source code never leaves the machine)
 ```
 
+While `ghost watch` runs it also opens **Ghost Studio** in your browser —
+`http://127.0.0.1:5417` (the recorder's own zero-dependency page): the live
+session shows the repo, the real turns (prompts), the files being changed with
+per-file churn, and the runtime samples from your app's `/api/health`. Data
+never leaves the machine.
+
+For the full 3D playground (the same interface as the published demo, fed by
+YOUR recording instead of the fixture): run this repo's dashboard locally
+(`npm run dev`) and open [`/playground?live=1`](http://localhost:3000/playground?live=1).
+It streams the live recording through a loopback bridge — the cloud playground
+sees sessions only after explicit pairing (`ghost setup`), never raw disks.
+
 **Using OpenCode?** (Mode A — real turn ids, richest context) copy the one-file
 adapter into your project, then start `ghost watch` and use OpenCode as usual:
 
